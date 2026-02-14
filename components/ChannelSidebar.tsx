@@ -56,6 +56,51 @@ export default function ChannelSidebar() {
           }
           setLoading(false);
         })();
+        
+        // Subscribe to new conversations
+        const channel = supabase
+          .channel(`dm_list:${userId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "direct_conversations",
+              filter: `user_a_id=eq.${userId}`,
+            },
+            async (payload) => {
+              const newConvo = payload.new as DirectConversation;
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", newConvo.user_b_id)
+                .single();
+              setConversations((prev) => [...prev, { ...newConvo, otherUser: profile }]);
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "direct_conversations",
+              filter: `user_b_id=eq.${userId}`,
+            },
+            async (payload) => {
+              const newConvo = payload.new as DirectConversation;
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", newConvo.user_a_id)
+                .single();
+              setConversations((prev) => [...prev, { ...newConvo, otherUser: profile }]);
+            }
+          )
+          .subscribe();
+        
+        return () => {
+          supabase.removeChannel(channel);
+        };
       } else {
         setLoading(false);
       }

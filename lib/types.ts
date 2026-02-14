@@ -42,7 +42,9 @@ export interface Message {
   content: string;
   created_at: string;
   edited_at: string | null;
+  reply_to: string | null;
   profiles?: Profile | null;
+  reply_message?: Message | null;
 }
 
 export interface FriendRequest {

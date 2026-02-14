@@ -16,7 +16,7 @@ export default function ChatArea() {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map()); // userId -> username
   const [userId, setUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -113,11 +113,15 @@ export default function ChatArea() {
       clearTimeout(typingTimeoutRef.current);
     }
     
+    // Get username
+    const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).single();
+    const username = profile?.username || "Someone";
+    
     // Broadcast typing
     await supabase.channel(`typing:${currentChannelId}`).send({
       type: "broadcast",
       event: "typing",
-      payload: { userId },
+      payload: { userId, username },
     });
     
     // Auto-stop after 3 seconds
@@ -137,17 +141,21 @@ export default function ChatArea() {
     const channel = supabase.channel(`typing:${currentChannelId}`)
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (payload.userId !== userId) {
-          setTypingUsers((prev) => [...new Set([...prev, payload.userId])]);
+          setTypingUsers((prev) => new Map(prev).set(payload.userId, payload.username));
         }
       })
       .on("broadcast", { event: "stop_typing" }, ({ payload }) => {
-        setTypingUsers((prev) => prev.filter((id) => id !== payload.userId));
+        setTypingUsers((prev) => {
+          const newMap = new Map(prev);
+          newMap.delete(payload.userId);
+          return newMap;
+        });
       })
       .subscribe();
     
     return () => {
       supabase.removeChannel(channel);
-      setTypingUsers([]);
+      setTypingUsers(new Map());
     };
   }, [currentChannelId, userId, supabase]);
 
@@ -203,14 +211,16 @@ export default function ChatArea() {
             </div>
           </div>
         ))}
-        {typingUsers.length > 0 && (
+        {typingUsers.size > 0 && (
           <div className="flex items-center gap-2 py-2 text-sm text-gray-400">
             <div className="flex gap-1">
               <span className="animate-bounce">●</span>
               <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>●</span>
               <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>●</span>
             </div>
-            <span>Someone is typing...</span>
+            <span>
+              {Array.from(typingUsers.values()).join(", ")} {typingUsers.size === 1 ? "is" : "are"} typing...
+            </span>
           </div>
         )}
         <div ref={messagesEndRef} />
