@@ -25,6 +25,17 @@ export default function AppShell() {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
   }, [supabase.auth]);
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+          console.log("Notification permission:", permission);
+        });
+      }
+    }
+  }, []);
+
   // Global DM notification listener
   useEffect(() => {
     if (!userId) return;
@@ -63,10 +74,33 @@ export default function AppShell() {
               .eq("id", newMessage.author_id)
               .single();
 
+            const senderName = (profile as Profile)?.username || "Someone";
+            const messageText = newMessage.content || "Sent an attachment";
+
+            // Show in-app notification
             setNotification({
-              sender: (profile as Profile)?.username || "Someone",
-              message: newMessage.content || "Sent an attachment"
+              sender: senderName,
+              message: messageText
             });
+
+            // Show browser notification if permission granted
+            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+              const browserNotif = new Notification(`${senderName} sent you a message`, {
+                body: messageText,
+                icon: "/favicon.ico",
+                tag: newMessage.conversation_id, // Prevents duplicate notifications
+                requireInteraction: false,
+              });
+
+              // Auto-close after 5 seconds
+              setTimeout(() => browserNotif.close(), 5000);
+
+              // Optional: Click to focus window
+              browserNotif.onclick = () => {
+                window.focus();
+                browserNotif.close();
+              };
+            }
           } else {
             console.log("⏭️ Skipping notification (own message or viewing conversation)");
           }
