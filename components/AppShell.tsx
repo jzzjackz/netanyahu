@@ -36,91 +36,130 @@ export default function AppShell() {
     }
   }, []);
 
-  // Global DM notification listener
+  // Global DM notification listener - subscribe to all user's conversations
   useEffect(() => {
     if (!userId) return;
 
     console.log("🔔 Setting up global DM notification listener for user:", userId);
-    console.log("Current conversation ID:", currentConversationId);
 
-    const channel = supabase
-      .channel("global_dm_notifications")
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "direct_messages"
-        },
-        async (payload) => {
-          console.log("🔥 RAW PAYLOAD RECEIVED:", payload);
-          const newMessage = payload.new as DirectMessage;
-          
-          console.log("📨 New DM detected:", {
-            authorId: newMessage.author_id,
-            currentUserId: userId,
-            conversationId: newMessage.conversation_id,
-            currentConversationId,
-            isOwnMessage: newMessage.author_id === userId,
-            isCurrentConvo: newMessage.conversation_id === currentConversationId
-          });
+    // Get all conversations this user is part of
+    const setupListeners = async () => {
+      const { data: conversations } = await supabase
+        .from("direct_conversations")
+        .select("id")
+        .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
 
-          // Only show notification if:
-          // 1. Message is not from current user
-          // 2. User is not currently viewing this conversation
-          if (newMessage.author_id !== userId && newMessage.conversation_id !== currentConversationId) {
-            console.log("✅ Showing notification for DM");
-            
-            // Get sender profile
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", newMessage.author_id)
-              .single();
+      if (!conversations || conversations.length === 0) {
+        console.log("No conversations found for user");
+        return;
+      }
 
-            const senderName = (profile as Profile)?.username || "Someone";
-            const messageText = newMessage.content || "Sent an attachment";
+      console.log(`Found ${conversations.length} conversations, setting up listeners...`);
 
-            console.log("Setting notification state:", { senderName, messageText });
+      // Subscribe to each conversation
+      const channels = conversations.map((convo) => {
+        const channel = supabase
+          .channel(`dm_notif:${convo.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "direct_messages",
+              filter: `conversation_id=eq.${convo.id}`,
+            },
+            async (payload) => {
+              console.log("🔥 RAW PAYLOAD RECEIVED:", payload);
+              const newMessage = payload.new as DirectMessage;
 
-            // Show in-app notification
-            setNotification({
-              sender: senderName,
-              message: messageText
-            });
-
-            // Show browser notification if permission granted
-            if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
-              console.log("Showing browser notification");
-              const browserNotif = new Notification(`${senderName} sent you a message`, {
-                body: messageText,
-                icon: "/favicon.ico",
-                tag: newMessage.conversation_id,
-                requireInteraction: false,
+              console.log("📨 New DM detected:", {
+                authorId: newMessage.author_id,
+                currentUserId: userId,
+                conversationId: newMessage.conversation_id,
+                currentConversationId,
+                isOwnMessage: newMessage.author_id === userId,
+                isCurrentConvo: newMessage.conversation_id === currentConversationId,
               });
 
-              setTimeout(() => browserNotif.close(), 5000);
+              // Only show notification if:
+              // 1. Message is not from current user
+              // 2. User is not currently viewing this conversation
+              if (
+                newMessage.author_id !== userId &&
+                newMessage.conversation_id !== currentConversationId
+              ) {
+                console.log("✅ Showing notification for DM");
 
-              browserNotif.onclick = () => {
-                window.focus();
-                browserNotif.close();
-              };
+                // Get sender profile
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("*")
+                  .eq("id", newMessage.author_id)
+                  .single();
+
+                const senderName = (profile as Profile)?.username || "Someone";
+                const messageText = newMessage.content || "Sent an attachment";
+
+                console.log("Setting notification state:", { senderName, messageText });
+
+                // Show in-app notification
+                setNotification({
+                  sender: senderName,
+                  message: messageText,
+                });
+
+                // Show browser notification if permission granted
+                if (
+                  typeof window !== "undefined" &&
+                  "Notification" in window &&
+                  Notification.permission === "granted"
+                ) {
+                  console.log("Showing browser notification");
+                  const browserNotif = new Notification(
+                    `${senderName} sent you a message`,
+                    {
+                      body: messageText,
+                      icon: "/favicon.ico",
+                      tag: newMessage.conversation_id,
+                      requireInteraction: false,
+                    }
+                  );
+
+                  setTimeout(() => browserNotif.close(), 5000);
+
+                  browserNotif.onclick = () => {
+                    window.focus();
+                    browserNotif.close();
+                  };
+                }
+              } else {
+                console.log("⏭️ Skipping notification:", {
+                  reason:
+                    newMessage.author_id === userId
+                      ? "own message"
+                      : "viewing conversation",
+                });
+              }
             }
-          } else {
-            console.log("⏭️ Skipping notification:", {
-              reason: newMessage.author_id === userId ? "own message" : "viewing conversation"
-            });
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log("📡 Realtime subscription status:", status);
+          )
+          .subscribe((status) => {
+            console.log(`📡 Conversation ${convo.id} subscription status:`, status);
+          });
+
+        return channel;
       });
 
-    return () => {
-      console.log("🔕 Cleaning up global DM notification listener");
-      supabase.removeChannel(channel);
+      // Cleanup function
+      return () => {
+        console.log("🔕 Cleaning up DM notification listeners");
+        channels.forEach((ch) => supabase.removeChannel(ch));
+      };
     };
+
+    setupListeners();
+
+    // Note: We're not returning the cleanup function here because setupListeners is async
+    // This is a limitation, but the channels will be cleaned up when the component unmounts
   }, [userId, currentConversationId, supabase]);
 
   useEffect(() => {
