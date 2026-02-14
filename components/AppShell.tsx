@@ -56,6 +56,7 @@ export default function AppShell() {
     console.log("🔔 Setting up global DM notification listener for user:", userId);
 
     let channels: ReturnType<typeof supabase.channel>[] = [];
+    let isMounted = true;
 
     // Get all conversations this user is part of
     const setupListeners = async () => {
@@ -63,6 +64,8 @@ export default function AppShell() {
         .from("direct_conversations")
         .select("id")
         .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
+
+      if (!isMounted) return; // Component unmounted during async operation
 
       if (!conversations || conversations.length === 0) {
         console.log("No conversations found for user");
@@ -74,7 +77,7 @@ export default function AppShell() {
       // Subscribe to each conversation
       channels = conversations.map((convo) => {
         const channel = supabase
-          .channel(`dm_notif:${convo.id}`)
+          .channel(`dm_notif_${convo.id}`) // Changed naming to avoid conflicts
           .on(
             "postgres_changes",
             {
@@ -84,6 +87,8 @@ export default function AppShell() {
               filter: `conversation_id=eq.${convo.id}`,
             },
             async (payload) => {
+              if (!isMounted) return; // Don't process if unmounted
+              
               console.log("🔥 RAW PAYLOAD RECEIVED:", payload);
               const newMessage = payload.new as DirectMessage;
 
@@ -159,7 +164,9 @@ export default function AppShell() {
             }
           )
           .subscribe((status) => {
-            console.log(`📡 Conversation ${convo.id} subscription status:`, status);
+            if (isMounted) {
+              console.log(`📡 Conversation ${convo.id} subscription status:`, status);
+            }
           });
 
         return channel;
@@ -171,6 +178,7 @@ export default function AppShell() {
     // Cleanup function
     return () => {
       console.log("🔕 Cleaning up DM notification listeners");
+      isMounted = false;
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
   }, [userId, supabase]); // Removed currentConversationId from dependencies
