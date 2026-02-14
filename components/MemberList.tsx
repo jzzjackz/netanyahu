@@ -32,6 +32,38 @@ export default function MemberList() {
       setMembers(membersList.map((m) => ({ ...m, profiles: profileMap.get(m.user_id) ?? null })));
       setLoading(false);
     })();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel(`server_members:${currentServerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "server_members",
+          filter: `server_id=eq.${currentServerId}`,
+        },
+        async (payload) => {
+          if (payload.eventType === "INSERT") {
+            const newMember = payload.new as ServerMember;
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", newMember.user_id)
+              .single();
+            setMembers((prev) => [...prev, { ...newMember, profiles: profile as Profile }]);
+          } else if (payload.eventType === "DELETE") {
+            const oldMember = payload.old as ServerMember;
+            setMembers((prev) => prev.filter((m) => m.user_id !== oldMember.user_id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentServerId, supabase]);
 
   if (!currentServerId) return null;

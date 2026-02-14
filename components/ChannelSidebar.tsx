@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
-import type { Channel, Server } from "../lib/types";
+import type { Channel, Server, DirectConversation, Profile } from "../lib/types";
 
 export default function ChannelSidebar() {
   const supabase = createSupabaseBrowserClient();
-  const { currentServerId, currentChannelId, setChannel } = useAppStore();
+  const { currentServerId, currentChannelId, currentConversationId, setChannel, setConversation } = useAppStore();
   const [server, setServer] = useState<Server | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [conversations, setConversations] = useState<(DirectConversation & { otherUser?: Profile })[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
@@ -19,10 +21,44 @@ export default function ChannelSidebar() {
   const [inviteGenerating, setInviteGenerating] = useState(false);
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+  }, [supabase.auth]);
+
+  useEffect(() => {
     if (!currentServerId) {
       setServer(null);
       setChannels([]);
-      setLoading(false);
+      // Load DM conversations
+      if (userId) {
+        (async () => {
+          setLoading(true);
+          const { data: convos } = await supabase
+            .from("direct_conversations")
+            .select("*")
+            .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
+          
+          if (convos && convos.length > 0) {
+            const otherUserIds = convos.map((c: DirectConversation) => 
+              c.user_a_id === userId ? c.user_b_id : c.user_a_id
+            );
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("*")
+              .in("id", otherUserIds);
+            
+            const profileMap = new Map((profiles ?? []).map((p: Profile) => [p.id, p]));
+            setConversations(convos.map((c: DirectConversation) => ({
+              ...c,
+              otherUser: profileMap.get(c.user_a_id === userId ? c.user_b_id : c.user_a_id),
+            })));
+          } else {
+            setConversations([]);
+          }
+          setLoading(false);
+        })();
+      } else {
+        setLoading(false);
+      }
       return;
     }
     setLoading(true);
@@ -36,7 +72,7 @@ export default function ChannelSidebar() {
       setLoading(false);
     };
     load();
-  }, [currentServerId, supabase]);
+  }, [currentServerId, userId, supabase]);
 
   const handleGenerateInvite = async () => {
     if (!currentServerId || inviteGenerating) return;
@@ -81,9 +117,35 @@ export default function ChannelSidebar() {
   if (!currentServerId) {
     return (
       <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
-        <div className="flex flex-col items-center justify-center gap-2 p-4 text-gray-400">
-          <p className="text-sm">Select a server or create one</p>
+        <div className="flex h-12 items-center border-b border-[#1e1f22] px-4 shadow-sm">
+          <h2 className="font-semibold">Direct Messages</h2>
         </div>
+        {loading ? (
+          <div className="p-4">
+            <div className="h-4 w-3/4 animate-pulse rounded bg-[#313338]" />
+          </div>
+        ) : conversations.length > 0 ? (
+          <div className="flex-1 overflow-y-auto py-2">
+            {conversations.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setConversation(c.id)}
+                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${currentConversationId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
+              >
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold">
+                  {(c.otherUser?.username ?? "?").slice(0, 1).toUpperCase()}
+                </div>
+                <span className="truncate">{c.otherUser?.username ?? "Unknown"}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center gap-2 p-4 text-gray-400">
+            <p className="text-sm">No conversations yet</p>
+            <p className="text-xs">Add friends to start chatting</p>
+          </div>
+        )}
       </div>
     );
   }

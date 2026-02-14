@@ -55,6 +55,28 @@ export default function FriendsPanel() {
       setFriends((profs as Profile[]) ?? []);
     };
     load();
+
+    // Subscribe to friend request changes
+    const channel = supabase
+      .channel(`friend_requests:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "friend_requests",
+          filter: `to_user_id=eq.${userId}`,
+        },
+        () => {
+          // Reload friend requests when changes occur
+          load();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [userId, supabase]);
 
   const handleAddFriend = async (e: React.FormEvent) => {
