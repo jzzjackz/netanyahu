@@ -8,7 +8,6 @@ import FriendsPanel from "./FriendsPanel";
 import { useAppStore } from "../lib/store";
 
 export default function AppShell() {
-  const supabase = createSupabaseBrowserClient();
   const { currentServerId } = useAppStore();
 
   return (
