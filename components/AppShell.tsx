@@ -17,7 +17,7 @@ export default function AppShell() {
   const { currentServerId, currentChannelId, currentConversationId } = useAppStore();
   const [voiceChannel, setVoiceChannel] = useState<Channel | null>(null);
   const [voiceChannelKey, setVoiceChannelKey] = useState(0);
-  const [notification, setNotification] = useState<{ sender: string; message: string } | null>(null);
+  const [notification, setNotification] = useState<{ sender: string; message: string; conversationId: string } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   
   // Use ref to track current conversation without causing re-subscriptions
@@ -25,7 +25,13 @@ export default function AppShell() {
   
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
-  }, [currentConversationId]);
+    
+    // Auto-dismiss notification if user switches to that conversation
+    if (notification && notification.conversationId === currentConversationId) {
+      console.log("Auto-dismissing notification - user switched to conversation");
+      setNotification(null);
+    }
+  }, [currentConversationId, notification]);
 
   // Get current user ID
   useEffect(() => {
@@ -115,6 +121,7 @@ export default function AppShell() {
                 setNotification({
                   sender: senderName,
                   message: messageText,
+                  conversationId: newMessage.conversation_id,
                 });
 
                 // Show browser notification if permission granted
