@@ -161,8 +161,6 @@ export default function ChannelSidebar() {
   }, [currentServerId, channels, supabase]);
 
   const handleGenerateInvite = async () => {
-
-  const handleGenerateInvite = async () => {
     if (!currentServerId || inviteGenerating) return;
     setInviteGenerating(true);
     const { data: { user } } = await supabase.auth.getUser();
