@@ -5,6 +5,8 @@ import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
 import type { Message, Channel, Profile } from "../lib/types";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -14,8 +16,15 @@ export default function ChatArea() {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+  }, [supabase.auth]);
 
   useEffect(() => {
     if (!currentChannelId) {
@@ -76,6 +85,17 @@ export default function ChatArea() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setSending(true);
+    
+    // Stop typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    await supabase.channel(`typing:${currentChannelId}`).send({
+      type: "broadcast",
+      event: "stop_typing",
+      payload: { userId: user.id },
+    });
+    
     await supabase.from("messages").insert({
       channel_id: currentChannelId,
       author_id: user.id,
@@ -84,6 +104,52 @@ export default function ChatArea() {
     setContent("");
     setSending(false);
   };
+
+  const handleTyping = async () => {
+    if (!currentChannelId || !userId) return;
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Broadcast typing
+    await supabase.channel(`typing:${currentChannelId}`).send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId },
+    });
+    
+    // Auto-stop after 3 seconds
+    typingTimeoutRef.current = setTimeout(async () => {
+      await supabase.channel(`typing:${currentChannelId}`).send({
+        type: "broadcast",
+        event: "stop_typing",
+        payload: { userId },
+      });
+    }, 3000);
+  };
+
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (!currentChannelId) return;
+    
+    const channel = supabase.channel(`typing:${currentChannelId}`)
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if (payload.userId !== userId) {
+          setTypingUsers((prev) => [...new Set([...prev, payload.userId])]);
+        }
+      })
+      .on("broadcast", { event: "stop_typing" }, ({ payload }) => {
+        setTypingUsers((prev) => prev.filter((id) => id !== payload.userId));
+      })
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+      setTypingUsers([]);
+    };
+  }, [currentChannelId, userId, supabase]);
 
   if (currentConversationId) {
     return <DMArea conversationId={currentConversationId} />;
@@ -131,10 +197,22 @@ export default function ChatArea() {
               <span className="text-xs text-gray-500">
                 {m.created_at && format(new Date(m.created_at), "MMM d, HH:mm")}
               </span>
-              <p className="break-words text-gray-200">{m.content}</p>
+              <div className="prose prose-invert max-w-none break-words text-gray-200">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+              </div>
             </div>
           </div>
         ))}
+        {typingUsers.length > 0 && (
+          <div className="flex items-center gap-2 py-2 text-sm text-gray-400">
+            <div className="flex gap-1">
+              <span className="animate-bounce">●</span>
+              <span className="animate-bounce" style={{ animationDelay: "0.1s" }}>●</span>
+              <span className="animate-bounce" style={{ animationDelay: "0.2s" }}>●</span>
+            </div>
+            <span>Someone is typing...</span>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
       <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
@@ -142,7 +220,7 @@ export default function ChatArea() {
           <input
             type="text"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => { setContent(e.target.value); handleTyping(); }}
             placeholder={`Message #${channel?.name ?? ""}`}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
           />

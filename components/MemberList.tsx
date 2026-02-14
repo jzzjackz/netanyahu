@@ -10,15 +10,19 @@ export default function MemberList() {
   const { currentServerId } = useAppStore();
   const [members, setMembers] = useState<ServerMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [contextMember, setContextMember] = useState<ServerMember | null>(null);
+  const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (!currentServerId) {
-      setMembers([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+  }, [supabase.auth]);
+
+  useEffect(() => {
+    if (!currentServerId) return;
     (async () => {
+      setLoading(true);
       const { data: rows } = await supabase.from("server_members").select("*").eq("server_id", currentServerId);
       const membersList = (rows as ServerMember[]) ?? [];
       if (membersList.length === 0) {
@@ -26,6 +30,13 @@ export default function MemberList() {
         setLoading(false);
         return;
       }
+      
+      // Get current user's role
+      if (userId) {
+        const userMember = membersList.find(m => m.user_id === userId);
+        setUserRole(userMember?.role ?? null);
+      }
+      
       const ids = membersList.map((m) => m.user_id);
       const { data: profs } = await supabase.from("profiles").select("*").in("id", ids);
       const profileMap = new Map<string, Profile>(((profs ?? []) as Profile[]).map((p) => [p.id, p]));
@@ -64,7 +75,28 @@ export default function MemberList() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentServerId, supabase]);
+  }, [currentServerId, userId, supabase]);
+
+  const handleKick = async (member: ServerMember) => {
+    if (!currentServerId || !userRole || !['owner', 'admin'].includes(userRole)) return;
+    if (!confirm(`Kick ${member.profiles?.username ?? 'this user'}?`)) return;
+    await supabase.from("server_members").delete().eq("server_id", currentServerId).eq("user_id", member.user_id);
+    setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id));
+    setContextMember(null);
+  };
+
+  const handleBan = async (member: ServerMember) => {
+    if (!currentServerId || !userId || !userRole || !['owner', 'admin'].includes(userRole)) return;
+    if (!confirm(`Ban ${member.profiles?.username ?? 'this user'}? They won't be able to rejoin.`)) return;
+    await supabase.from("server_bans").insert({
+      server_id: currentServerId,
+      user_id: member.user_id,
+      banned_by: userId,
+    });
+    await supabase.from("server_members").delete().eq("server_id", currentServerId).eq("user_id", member.user_id);
+    setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id));
+    setContextMember(null);
+  };
 
   if (!currentServerId) return null;
   if (loading) {
@@ -83,7 +115,17 @@ export default function MemberList() {
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         {members.map((m) => (
-          <div key={m.user_id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">
+          <div 
+            key={m.user_id} 
+            className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5"
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (userRole && ['owner', 'admin'].includes(userRole) && m.user_id !== userId) {
+                setContextMember(m);
+                setContextPos({ x: e.clientX, y: e.clientY });
+              }
+            }}
+          >
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold">
               {(m.profiles?.username ?? `User-${m.user_id.slice(-6)}`).slice(0, 1).toUpperCase()}
             </div>
@@ -96,6 +138,37 @@ export default function MemberList() {
           </div>
         ))}
       </div>
+      {contextMember && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setContextMember(null)} aria-hidden />
+          <div
+            className="fixed z-50 rounded bg-[#313338] py-1 shadow-xl"
+            style={{ left: contextPos.x, top: contextPos.y }}
+          >
+            <button
+              type="button"
+              onClick={() => handleKick(contextMember)}
+              className="w-full px-4 py-2 text-left text-sm text-orange-400 hover:bg-white/10"
+            >
+              Kick {contextMember.profiles?.username}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBan(contextMember)}
+              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/10"
+            >
+              Ban {contextMember.profiles?.username}
+            </button>
+            <button
+              type="button"
+              onClick={() => setContextMember(null)}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-white/10"
+            >
+              Cancel
+            </button>
+          </div>
+        </>
+      )}
       <div className="mt-auto border-t border-[#1e1f22] p-2">
         <button
           type="button"
