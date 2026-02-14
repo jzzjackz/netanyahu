@@ -222,15 +222,17 @@ export default function ChannelSidebar() {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto py-2">
-        <div className="px-2">
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-400 transition hover:bg-white/5 hover:text-gray-200"
-          >
-            <span className="text-lg">+</span> Create Channel
-          </button>
-        </div>
+        {server?.owner_id === userId && (
+          <div className="px-2">
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-400 transition hover:bg-white/5 hover:text-gray-200"
+            >
+              <span className="text-lg">+</span> Create Channel
+            </button>
+          </div>
+        )}
         {textChannels.length > 0 && (
           <>
             <div className="mt-2 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-gray-500">

@@ -12,6 +12,7 @@ export default function MemberList() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [contextMember, setContextMember] = useState<ServerMember | null>(null);
   const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
 
@@ -36,6 +37,15 @@ export default function MemberList() {
         const userMember = membersList.find(m => m.user_id === userId);
         setUserRole(userMember?.role ?? null);
       }
+      
+      // Check if user is server owner
+      const { data: serverData } = await supabase
+        .from("servers")
+        .select("owner_id")
+        .eq("id", currentServerId)
+        .single();
+      
+      setIsOwner(serverData?.owner_id === userId);
       
       const ids = membersList.map((m) => m.user_id);
       const { data: profs } = await supabase.from("profiles").select("*").in("id", ids);
@@ -78,7 +88,7 @@ export default function MemberList() {
   }, [currentServerId, userId, supabase]);
 
   const handleKick = async (member: ServerMember) => {
-    if (!currentServerId || !userRole || !['owner', 'admin'].includes(userRole)) return;
+    if (!currentServerId || !isOwner) return;
     if (!confirm(`Kick ${member.profiles?.username ?? 'this user'}?`)) return;
     await supabase.from("server_members").delete().eq("server_id", currentServerId).eq("user_id", member.user_id);
     setMembers((prev) => prev.filter((m) => m.user_id !== member.user_id));
@@ -86,7 +96,7 @@ export default function MemberList() {
   };
 
   const handleBan = async (member: ServerMember) => {
-    if (!currentServerId || !userId || !userRole || !['owner', 'admin'].includes(userRole)) return;
+    if (!currentServerId || !userId || !isOwner) return;
     if (!confirm(`Ban ${member.profiles?.username ?? 'this user'}? They won't be able to rejoin.`)) return;
     await supabase.from("server_bans").insert({
       server_id: currentServerId,
@@ -120,7 +130,7 @@ export default function MemberList() {
             className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5"
             onContextMenu={(e) => {
               e.preventDefault();
-              if (userRole && ['owner', 'admin'].includes(userRole) && m.user_id !== userId) {
+              if (isOwner && m.user_id !== userId) {
                 setContextMember(m);
                 setContextPos({ x: e.clientX, y: e.clientY });
               }
