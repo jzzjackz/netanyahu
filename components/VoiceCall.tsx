@@ -25,6 +25,7 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const channelRef = useRef<any>(null);
   const remoteAudiosRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const pendingIceCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
   // Initialize audio stream
   useEffect(() => {
@@ -263,7 +264,7 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
     }
 
     if (pc) {
-      console.log("Setting remote description");
+      console.log("Setting remote description from offer");
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       console.log("Creating answer");
       const answer = await pc.createAnswer();
@@ -285,20 +286,49 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
           },
         });
       }
+      
+      // Process any pending ICE candidates
+      console.log("Processing pending ICE candidates for", peerId);
+      const pendingCandidates = pendingIceCandidatesRef.current.get(peerId) || [];
+      for (const candidate of pendingCandidates) {
+        console.log("Adding pending ICE candidate");
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      pendingIceCandidatesRef.current.delete(peerId);
     }
   };
 
   const handleAnswer = async (peerId: string, answer: RTCSessionDescriptionInit) => {
+    console.log("Handling answer from", peerId);
     const pc = peerConnectionsRef.current.get(peerId);
     if (pc) {
+      console.log("Setting remote description from answer");
       await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      console.log("Remote description set, processing pending ICE candidates");
+      
+      // Process any pending ICE candidates
+      const pendingCandidates = pendingIceCandidatesRef.current.get(peerId) || [];
+      for (const candidate of pendingCandidates) {
+        console.log("Adding pending ICE candidate");
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      pendingIceCandidatesRef.current.delete(peerId);
     }
   };
 
   const handleIceCandidate = async (peerId: string, candidate: RTCIceCandidateInit) => {
+    console.log("Handling ICE candidate from", peerId);
     const pc = peerConnectionsRef.current.get(peerId);
     if (pc) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      if (pc.remoteDescription) {
+        console.log("Remote description exists, adding ICE candidate immediately");
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        console.log("Remote description not set yet, queuing ICE candidate");
+        const pending = pendingIceCandidatesRef.current.get(peerId) || [];
+        pending.push(candidate);
+        pendingIceCandidatesRef.current.set(peerId, pending);
+      }
     }
   };
 
