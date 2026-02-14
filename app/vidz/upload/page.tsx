@@ -10,20 +10,22 @@ export default function UploadVideo() {
   const supabase = createSupabaseBrowserClient();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !videoUrl.trim()) {
-      setError("Title and video URL are required");
+    if (!title.trim() || !videoFile) {
+      setError("Title and video file are required");
       return;
     }
 
     setUploading(true);
     setError(null);
+    setUploadProgress(0);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -32,26 +34,71 @@ export default function UploadVideo() {
       return;
     }
 
-    const { data, error: uploadError } = await supabase
-      .from("videos")
-      .insert({
-        uploader_id: user.id,
-        title: title.trim(),
-        description: description.trim() || null,
-        video_url: videoUrl.trim(),
-        thumbnail_url: thumbnailUrl.trim() || null,
-      })
-      .select()
-      .single();
+    try {
+      // Upload video file
+      const videoFileName = `${user.id}/${Date.now()}-${videoFile.name}`;
+      setUploadProgress(25);
+      
+      const { data: videoData, error: videoError } = await supabase.storage
+        .from("videos")
+        .upload(videoFileName, videoFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
-    setUploading(false);
+      if (videoError) throw videoError;
+      setUploadProgress(50);
 
-    if (uploadError) {
-      setError(uploadError.message);
-      return;
+      // Get public URL for video
+      const { data: { publicUrl: videoUrl } } = supabase.storage
+        .from("videos")
+        .getPublicUrl(videoFileName);
+
+      // Upload thumbnail if provided
+      let thumbnailUrl = null;
+      if (thumbnailFile) {
+        const thumbnailFileName = `${user.id}/${Date.now()}-${thumbnailFile.name}`;
+        setUploadProgress(65);
+        
+        const { data: thumbnailData, error: thumbnailError } = await supabase.storage
+          .from("thumbnails")
+          .upload(thumbnailFileName, thumbnailFile, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (!thumbnailError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from("thumbnails")
+            .getPublicUrl(thumbnailFileName);
+          thumbnailUrl = publicUrl;
+        }
+      }
+      setUploadProgress(80);
+
+      // Create video record in database
+      const { data, error: dbError } = await supabase
+        .from("videos")
+        .insert({
+          uploader_id: user.id,
+          title: title.trim(),
+          description: description.trim() || null,
+          video_url: videoUrl,
+          thumbnail_url: thumbnailUrl,
+        })
+        .select()
+        .single();
+
+      setUploadProgress(100);
+
+      if (dbError) throw dbError;
+
+      router.push(`/vidz/watch/${data.id}`);
+    } catch (err: any) {
+      setError(err.message || "Upload failed");
+      setUploading(false);
+      setUploadProgress(0);
     }
-
-    router.push(`/vidz/watch/${data.id}`);
   };
 
   return (
@@ -95,32 +142,52 @@ export default function UploadVideo() {
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              Video URL (required)
+              Video File (required)
             </label>
             <input
-              type="url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
+              type="file"
+              accept="video/*"
+              onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
               className="w-full rounded-lg bg-[#272727] px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="https://example.com/video.mp4"
             />
-            <p className="mt-1 text-xs text-gray-400">
-              Enter a direct link to your video file (MP4, WebM, etc.)
-            </p>
+            {videoFile && (
+              <p className="mt-1 text-xs text-gray-400">
+                Selected: {videoFile.name} ({(videoFile.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            )}
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium">
-              Thumbnail URL (optional)
+              Thumbnail (optional)
             </label>
             <input
-              type="url"
-              value={thumbnailUrl}
-              onChange={(e) => setThumbnailUrl(e.target.value)}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
               className="w-full rounded-lg bg-[#272727] px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-              placeholder="https://example.com/thumbnail.jpg"
             />
+            {thumbnailFile && (
+              <p className="mt-1 text-xs text-gray-400">
+                Selected: {thumbnailFile.name}
+              </p>
+            )}
           </div>
+
+          {uploading && (
+            <div className="rounded-lg bg-[#272727] p-4">
+              <div className="mb-2 flex justify-between text-sm">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#0f0f0f]">
+                <div
+                  className="h-full bg-indigo-500 transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="rounded-lg bg-red-500/10 p-3 text-sm text-red-400">
