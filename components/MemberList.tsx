@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
-import type { ServerMember } from "../lib/types";
+import type { ServerMember, Profile } from "../lib/types";
 
 export default function MemberList() {
   const supabase = createSupabaseBrowserClient();
@@ -28,7 +28,7 @@ export default function MemberList() {
       }
       const ids = membersList.map((m) => m.user_id);
       const { data: profs } = await supabase.from("profiles").select("*").in("id", ids);
-      const profileMap = new Map((profs ?? []).map((p: { id: string }) => [p.id, p]));
+      const profileMap = new Map<string, Profile>(((profs ?? []) as Profile[]).map((p) => [p.id, p]));
       setMembers(membersList.map((m) => ({ ...m, profiles: profileMap.get(m.user_id) ?? null })));
       setLoading(false);
     })();
