@@ -43,6 +43,7 @@ export interface Message {
   created_at: string;
   edited_at: string | null;
   reply_to: string | null;
+  attachments?: Array<{ url: string; name: string; type: string }>;
   profiles?: Profile | null;
   reply_message?: Message | null;
 }
@@ -71,6 +72,7 @@ export interface DirectMessage {
   content: string;
   created_at: string;
   edited_at: string | null;
+  attachments?: Array<{ url: string; name: string; type: string }>;
   profiles?: Profile | null;
 }
 

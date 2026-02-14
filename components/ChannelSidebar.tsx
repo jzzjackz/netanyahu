@@ -19,6 +19,7 @@ export default function ChannelSidebar() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteLink, setInviteLink] = useState("");
   const [inviteGenerating, setInviteGenerating] = useState(false);
+  const [channelType, setChannelType] = useState<"text" | "voice">("text");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -148,15 +149,18 @@ export default function ChannelSidebar() {
     const maxPos = channels.length ? Math.max(...channels.map((c) => c.position), 0) : 0;
     const { data: ch, error } = await supabase
       .from("channels")
-      .insert({ server_id: currentServerId, name: newChannelName.trim(), type: "text", position: maxPos + 1 })
+      .insert({ server_id: currentServerId, name: newChannelName.trim(), type: channelType, position: maxPos + 1 })
       .select()
       .single();
     setCreating(false);
     if (error || !ch) return;
     setChannels((prev) => [...prev, ch as Channel]);
     setNewChannelName("");
+    setChannelType("text");
     setCreateOpen(false);
-    setChannel(ch.id);
+    if (channelType === "text") {
+      setChannel(ch.id);
+    }
   };
 
   if (!currentServerId) {
@@ -316,6 +320,22 @@ export default function ChannelSidebar() {
           <div className="w-full max-w-sm rounded-lg bg-[#313338] p-4 shadow-xl">
             <h3 className="mb-3 font-semibold">Create Channel</h3>
             <form onSubmit={handleCreateChannel}>
+              <div className="mb-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setChannelType("text")}
+                  className={`flex-1 rounded px-3 py-2 text-sm ${channelType === "text" ? "bg-indigo-500" : "bg-[#1e1f22] hover:bg-[#2b2d31]"}`}
+                >
+                  # Text
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChannelType("voice")}
+                  className={`flex-1 rounded px-3 py-2 text-sm ${channelType === "voice" ? "bg-indigo-500" : "bg-[#1e1f22] hover:bg-[#2b2d31]"}`}
+                >
+                  🔊 Voice
+                </button>
+              </div>
               <input
                 type="text"
                 value={newChannelName}
@@ -325,7 +345,7 @@ export default function ChannelSidebar() {
                 autoFocus
               />
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setCreateOpen(false)} className="rounded px-3 py-1.5 text-sm hover:bg-white/10">
+                <button type="button" onClick={() => { setCreateOpen(false); setChannelType("text"); }} className="rounded px-3 py-1.5 text-sm hover:bg-white/10">
                   Cancel
                 </button>
                 <button type="submit" disabled={creating || !newChannelName.trim()} className="rounded bg-indigo-500 px-3 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">

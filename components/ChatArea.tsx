@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import MessageEmbeds from "./MessageEmbeds";
+import PrivateCall from "./PrivateCall";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -20,9 +21,12 @@ export default function ChatArea() {
   const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map()); // userId -> username
   const [userId, setUserId] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -41,7 +45,16 @@ export default function ChatArea() {
         supabase.from("channels").select("*").eq("id", currentChannelId).single(),
         supabase.from("messages").select("*").eq("channel_id", currentChannelId).order("created_at", { ascending: true }),
       ]);
-      setChannel(chRes.data as Channel | null);
+      const channelData = chRes.data as Channel | null;
+      setChannel(channelData);
+      
+      // Don't load messages for voice channels
+      if (channelData?.type === "voice") {
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+      
       const msgList = (msgRes.data as Message[]) ?? [];
       if (msgList.length > 0) {
         const authorIds = [...new Set(msgList.map((m) => m.author_id).filter(Boolean))] as string[];
@@ -104,7 +117,7 @@ export default function ChatArea() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !currentChannelId || sending) return;
+    if ((!content.trim() && selectedFiles.length === 0) || !currentChannelId || sending) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setSending(true);
@@ -119,14 +132,41 @@ export default function ChatArea() {
       payload: { userId: user.id },
     });
     
+    // Upload files if any
+    const attachments: Array<{ url: string; name: string; type: string }> = [];
+    if (selectedFiles.length > 0) {
+      setUploadingFiles(true);
+      for (const file of selectedFiles) {
+        const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        const { data, error } = await supabase.storage
+          .from("attachments")
+          .upload(fileName, file);
+        
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from("attachments")
+            .getPublicUrl(data.path);
+          
+          attachments.push({
+            url: publicUrl,
+            name: file.name,
+            type: file.type,
+          });
+        }
+      }
+      setUploadingFiles(false);
+    }
+    
     await supabase.from("messages").insert({
       channel_id: currentChannelId,
       author_id: user.id,
-      content: content.trim(),
+      content: content.trim() || "",
       reply_to: replyingTo?.id || null,
+      attachments: attachments.length > 0 ? attachments : [],
     });
     setContent("");
     setReplyingTo(null);
+    setSelectedFiles([]);
     setSending(false);
   };
 
@@ -214,6 +254,27 @@ export default function ChatArea() {
     );
   }
 
+  // Voice channel view
+  if (channel?.type === "voice") {
+    return (
+      <div className="flex flex-1 flex-col bg-[#313338]">
+        <div className="flex h-12 items-center border-b border-[#1e1f22] px-4">
+          <span className="text-gray-500">🔊</span>
+          <h2 className="ml-1 font-semibold">{channel?.name ?? "Voice Channel"}</h2>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-4">
+          <div className="rounded-full bg-[#404249] p-8">
+            <svg className="h-16 w-16 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold">Voice Channel</h3>
+          <p className="text-gray-400">Click a voice channel in the sidebar to join</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-1 flex-col bg-[#313338]">
       <div className="flex h-12 items-center border-b border-[#1e1f22] px-4">
@@ -247,6 +308,38 @@ export default function ChatArea() {
               <div className="prose prose-invert max-w-none break-words text-gray-200">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
               </div>
+              {m.attachments && m.attachments.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {m.attachments.map((att, idx) => {
+                    const isImage = att.type.startsWith("image/");
+                    if (isImage) {
+                      return (
+                        <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={att.url}
+                            alt={att.name}
+                            className="max-h-80 max-w-md rounded border border-[#404249] object-contain hover:opacity-90"
+                          />
+                        </a>
+                      );
+                    }
+                    return (
+                      <a
+                        key={idx}
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded bg-[#404249] px-3 py-2 text-sm hover:bg-[#4f5058]"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span className="truncate">{att.name}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
               <MessageEmbeds content={m.content} />
               <div className="mt-1 hidden gap-2 group-hover:flex">
                 <button
@@ -282,7 +375,56 @@ export default function ChatArea() {
         <div ref={messagesEndRef} />
       </div>
       <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-2 rounded bg-[#2b2d31] px-3 py-2 text-sm">
+            <span className="text-gray-400">Replying to {replyingTo.profiles?.username || "Unknown"}</span>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              className="ml-auto text-gray-500 hover:text-gray-300"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {selectedFiles.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {selectedFiles.map((file, idx) => (
+              <div key={idx} className="flex items-center gap-2 rounded bg-[#2b2d31] px-3 py-2 text-sm">
+                <span className="truncate max-w-[200px]">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                  className="text-gray-500 hover:text-gray-300"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-2 rounded-lg bg-[#404249] px-4 py-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            multiple
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              setSelectedFiles(prev => [...prev, ...files]);
+              e.target.value = "";
+            }}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="text-gray-400 hover:text-gray-200"
+            title="Attach files"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
           <input
             type="text"
             value={content}
@@ -290,8 +432,12 @@ export default function ChatArea() {
             placeholder={`Message #${channel?.name ?? ""}`}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
           />
-          <button type="submit" disabled={sending || !content.trim()} className="rounded bg-indigo-500 px-4 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
-            Send
+          <button 
+            type="submit" 
+            disabled={sending || uploadingFiles || (!content.trim() && selectedFiles.length === 0)} 
+            className="rounded bg-indigo-500 px-4 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50"
+          >
+            {uploadingFiles ? "Uploading..." : "Send"}
           </button>
         </div>
       </form>
@@ -305,10 +451,36 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [inCall, setInCall] = useState(false);
+  const [otherUser, setOtherUser] = useState<Profile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id ?? null);
+      
+      // Get conversation details to find other user
+      const { data: convo } = await supabase
+        .from("direct_conversations")
+        .select("*")
+        .eq("id", conversationId)
+        .single();
+      
+      if (convo && user) {
+        const otherUserId = convo.user_a_id === user.id ? convo.user_b_id : convo.user_a_id;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", otherUserId)
+          .single();
+        setOtherUser(profile as Profile | null);
+      }
+      
       const { data: rows } = await supabase
         .from("direct_messages")
         .select("*")
@@ -351,55 +523,185 @@ function DMArea({ conversationId }: { conversationId: string }) {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || sending) return;
+    if ((!content.trim() && selectedFiles.length === 0) || sending) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setSending(true);
+    
+    // Upload files if any
+    const attachments: Array<{ url: string; name: string; type: string }> = [];
+    if (selectedFiles.length > 0) {
+      setUploadingFiles(true);
+      for (const file of selectedFiles) {
+        const fileName = `${user.id}/${Date.now()}-${file.name}`;
+        const { data, error } = await supabase.storage
+          .from("attachments")
+          .upload(fileName, file);
+        
+        if (!error && data) {
+          const { data: { publicUrl } } = supabase.storage
+            .from("attachments")
+            .getPublicUrl(data.path);
+          
+          attachments.push({
+            url: publicUrl,
+            name: file.name,
+            type: file.type,
+          });
+        }
+      }
+      setUploadingFiles(false);
+    }
+    
     await supabase.from("direct_messages").insert({
       conversation_id: conversationId,
       author_id: user.id,
-      content: content.trim(),
+      content: content.trim() || "",
+      attachments: attachments.length > 0 ? attachments : [],
     });
     setContent("");
+    setSelectedFiles([]);
     setSending(false);
   };
 
   if (loading) return <div className="flex flex-1 items-center justify-center bg-[#313338]">Loading...</div>;
 
   return (
-    <div className="flex flex-1 flex-col bg-[#313338]">
-      <div className="flex h-12 items-center border-b border-[#1e1f22] px-4">
-        <h2 className="font-semibold">Direct Message</h2>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.map((m) => (
-          <div key={m.id} className="flex gap-3 py-1">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold">
-              {(m.profiles?.username ?? "?").toString().slice(0, 1).toUpperCase()}
-            </div>
-            <div>
-              <span className="mr-2 font-medium text-white">{m.profiles?.username ?? "Unknown"}</span>
-              <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
-              <p className="text-gray-200">{m.content}</p>
-            </div>
+    <>
+      {inCall && otherUser && (
+        <PrivateCall
+          conversationId={conversationId}
+          otherUsername={otherUser.username}
+          onLeave={() => setInCall(false)}
+        />
+      )}
+      <div className="flex flex-1 flex-col bg-[#313338]">
+        <div className="flex h-12 items-center justify-between border-b border-[#1e1f22] px-4">
+          <h2 className="font-semibold">{otherUser?.username ?? "Direct Message"}</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setInCall(true)}
+              className="rounded p-2 text-gray-400 hover:bg-white/5 hover:text-white"
+              title="Start voice call"
+            >
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setInCall(true)}
+              className="rounded p-2 text-gray-400 hover:bg-white/5 hover:text-white"
+              title="Start video call"
+            >
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+              </svg>
+            </button>
           </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
-        <div className="flex gap-2 rounded-lg bg-[#404249] px-4 py-2">
-          <input
-            type="text"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Message"
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
-          />
-          <button type="submit" disabled={sending || !content.trim()} className="rounded bg-indigo-500 px-4 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
-            Send
-          </button>
         </div>
-      </form>
-    </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {messages.map((m) => (
+            <div key={m.id} className="flex gap-3 py-1">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold">
+                {(m.profiles?.username ?? "?").toString().slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="mr-2 font-medium text-white">{m.profiles?.username ?? "Unknown"}</span>
+                <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
+                {m.content && <p className="text-gray-200">{m.content}</p>}
+                {m.attachments && m.attachments.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {m.attachments.map((att: { url: string; name: string; type: string }, idx: number) => {
+                      const isImage = att.type.startsWith("image/");
+                      if (isImage) {
+                        return (
+                          <a key={idx} href={att.url} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={att.url}
+                              alt={att.name}
+                              className="max-h-80 max-w-md rounded border border-[#404249] object-contain hover:opacity-90"
+                            />
+                          </a>
+                        );
+                      }
+                      return (
+                        <a
+                          key={idx}
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 rounded bg-[#404249] px-3 py-2 text-sm hover:bg-[#4f5058]"
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="truncate">{att.name}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
+          {selectedFiles.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {selectedFiles.map((file, idx) => (
+                <div key={idx} className="flex items-center gap-2 rounded bg-[#2b2d31] px-3 py-2 text-sm">
+                  <span className="truncate max-w-[200px]">{file.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFiles(prev => prev.filter((_, i) => i !== idx))}
+                    className="text-gray-500 hover:text-gray-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 rounded-lg bg-[#404249] px-4 py-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              multiple
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                setSelectedFiles(prev => [...prev, ...files]);
+                e.target.value = "";
+              }}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-gray-400 hover:text-gray-200"
+              title="Attach files"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+            <input
+              type="text"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Message"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
+            />
+            <button 
+              type="submit" 
+              disabled={sending || uploadingFiles || (!content.trim() && selectedFiles.length === 0)} 
+              className="rounded bg-indigo-500 px-4 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50"
+            >
+              {uploadingFiles ? "Uploading..." : "Send"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   );
 }
