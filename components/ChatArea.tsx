@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
-import type { Message, Channel } from "../lib/types";
+import type { Message, Channel, Profile } from "../lib/types";
 import { format } from "date-fns";
 
 export default function ChatArea() {
@@ -35,7 +35,7 @@ export default function ChatArea() {
       if (msgList.length > 0) {
         const authorIds = [...new Set(msgList.map((m) => m.author_id).filter(Boolean))] as string[];
         const { data: profs } = await supabase.from("profiles").select("*").in("id", authorIds);
-        const profileMap = new Map((profs ?? []).map((p: { id: string }) => [p.id, p]));
+        const profileMap = new Map<string, Profile>(((profs ?? []) as Profile[]).map((p) => [p.id, p]));
         setMessages(msgList.map((m) => ({ ...m, profiles: m.author_id ? profileMap.get(m.author_id) ?? null : null })));
       } else {
         setMessages(msgList);
@@ -53,10 +53,10 @@ export default function ChatArea() {
       async (payload) => {
         const newRow = payload.new as Message;
         const authorId = newRow.author_id;
-        let profile = null;
+        let profile: Profile | null = null;
         if (authorId) {
           const { data } = await supabase.from("profiles").select("*").eq("id", authorId).maybeSingle();
-          profile = data;
+          profile = data as Profile | null;
         }
         setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
       }
@@ -174,7 +174,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
       if (list.length > 0) {
         const authorIds = [...new Set(list.map((m) => m.author_id).filter(Boolean))] as string[];
         const { data: profs } = await supabase.from("profiles").select("*").in("id", authorIds);
-        const profileMap = new Map((profs ?? []).map((p: { id: string }) => [p.id, p]));
+        const profileMap = new Map<string, Profile>(((profs ?? []) as Profile[]).map((p) => [p.id, p]));
         setMessages(list.map((m) => ({ ...m, profiles: m.author_id ? profileMap.get(m.author_id) ?? null : null })));
       } else {
         setMessages(list);
@@ -190,10 +190,10 @@ function DMArea({ conversationId }: { conversationId: string }) {
       { event: "INSERT", schema: "public", table: "direct_messages", filter: `conversation_id=eq.${conversationId}` },
       async (payload) => {
         const newRow = payload.new as import("../lib/types").DirectMessage;
-        let profile = null;
+        let profile: Profile | null = null;
         if (newRow.author_id) {
           const { data } = await supabase.from("profiles").select("*").eq("id", newRow.author_id).maybeSingle();
-          profile = data;
+          profile = data as Profile | null;
         }
         setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
       }
