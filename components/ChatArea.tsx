@@ -7,6 +7,7 @@ import type { Message, Channel, Profile } from "../lib/types";
 import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import MessageEmbeds from "./MessageEmbeds";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -46,7 +47,15 @@ export default function ChatArea() {
         const authorIds = [...new Set(msgList.map((m) => m.author_id).filter(Boolean))] as string[];
         const { data: profs } = await supabase.from("profiles").select("*").in("id", authorIds);
         const profileMap = new Map<string, Profile>(((profs ?? []) as Profile[]).map((p) => [p.id, p]));
-        setMessages(msgList.map((m) => ({ ...m, profiles: m.author_id ? profileMap.get(m.author_id) ?? null : null })));
+        
+        // Create message map for replies
+        const messageMap = new Map(msgList.map((m) => [m.id, m]));
+        
+        setMessages(msgList.map((m) => ({
+          ...m,
+          profiles: m.author_id ? profileMap.get(m.author_id) ?? null : null,
+          reply_message: m.reply_to ? messageMap.get(m.reply_to) : null,
+        })));
       } else {
         setMessages(msgList);
       }
@@ -68,13 +77,23 @@ export default function ChatArea() {
           const { data } = await supabase.from("profiles").select("*").eq("id", authorId).maybeSingle();
           profile = data as Profile | null;
         }
-        setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
+        
+        // Get reply message if exists
+        let replyMessage: Message | null = null;
+        if (newRow.reply_to) {
+          const existing = messages.find(m => m.id === newRow.reply_to);
+          if (existing) {
+            replyMessage = existing;
+          }
+        }
+        
+        setMessages((prev) => [...prev, { ...newRow, profiles: profile, reply_message: replyMessage }]);
       }
     ).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentChannelId, supabase]);
+  }, [currentChannelId, messages, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -214,14 +233,18 @@ export default function ChatArea() {
               <span className="text-xs text-gray-500">
                 {m.created_at && format(new Date(m.created_at), "MMM d, HH:mm")}
               </span>
-              {m.reply_to && (
-                <div className="mb-1 ml-4 border-l-2 border-gray-600 pl-2 text-xs text-gray-400">
-                  Replying to a message
+              {m.reply_to && m.reply_message && (
+                <div className="mb-1 ml-4 border-l-2 border-indigo-500 pl-2 text-xs">
+                  <span className="text-gray-400">
+                    Replying to <span className="text-indigo-400">{m.reply_message.profiles?.username || "Unknown"}</span>
+                  </span>
+                  <p className="text-gray-500 line-clamp-1">{m.reply_message.content}</p>
                 </div>
               )}
               <div className="prose prose-invert max-w-none break-words text-gray-200">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
               </div>
+              <MessageEmbeds content={m.content} />
               <div className="mt-1 hidden gap-2 group-hover:flex">
                 <button
                   onClick={() => setReplyingTo(m)}
