@@ -9,7 +9,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import MessageEmbeds from "./MessageEmbeds";
 import PrivateCall from "./PrivateCall";
-import MessageNotification from "./MessageNotification";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -457,7 +456,6 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [notification, setNotification] = useState<{ sender: string; message: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -514,21 +512,6 @@ function DMArea({ conversationId }: { conversationId: string }) {
           profile = data as Profile | null;
         }
         setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
-        
-        // Show notification if message is from other user
-        const { data: { user } } = await supabase.auth.getUser();
-        console.log("New DM message:", { 
-          authorId: newRow.author_id, 
-          currentUserId: user?.id, 
-          shouldNotify: newRow.author_id !== user?.id 
-        });
-        if (newRow.author_id !== user?.id) {
-          console.log("Setting notification:", profile?.username);
-          setNotification({
-            sender: profile?.username || "Someone",
-            message: newRow.content || "Sent an attachment"
-          });
-        }
       }
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -603,13 +586,6 @@ function DMArea({ conversationId }: { conversationId: string }) {
 
   return (
     <>
-      {notification && (
-        <MessageNotification
-          senderUsername={notification.sender}
-          message={notification.message}
-          onClose={() => setNotification(null)}
-        />
-      )}
       {inCall && otherUser && (
         <PrivateCall
           conversationId={conversationId}
