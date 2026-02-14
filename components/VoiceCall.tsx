@@ -86,7 +86,10 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
       channel
         .on("broadcast", { event: "user_joined" }, async ({ payload }) => {
           console.log("User joined:", payload);
-          if (payload.id === user.id) return;
+          if (payload.id === user.id) {
+            console.log("Ignoring own join event");
+            return;
+          }
           
           setParticipants((prev) => {
             if (prev.some((p) => p.id === payload.id)) return prev;
@@ -114,17 +117,38 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
         })
         .on("broadcast", { event: "webrtc_offer" }, async ({ payload }) => {
           console.log("Received WebRTC offer from:", payload.from);
-          if (payload.to !== user.id) return;
+          if (!payload.from || payload.from === user.id) {
+            console.log("Ignoring offer from self or null");
+            return;
+          }
+          if (payload.to && payload.to !== user.id) {
+            console.log("Offer not for us");
+            return;
+          }
           await handleOffer(payload.from, payload.offer);
         })
         .on("broadcast", { event: "webrtc_answer" }, async ({ payload }) => {
           console.log("Received WebRTC answer from:", payload.from);
-          if (payload.to !== user.id) return;
+          if (!payload.from || payload.from === user.id) {
+            console.log("Ignoring answer from self or null");
+            return;
+          }
+          if (payload.to && payload.to !== user.id) {
+            console.log("Answer not for us");
+            return;
+          }
           await handleAnswer(payload.from, payload.answer);
         })
         .on("broadcast", { event: "webrtc_ice" }, async ({ payload }) => {
           console.log("Received ICE candidate from:", payload.from);
-          if (payload.to !== user.id) return;
+          if (!payload.from || payload.from === user.id) {
+            console.log("Ignoring ICE from self or null");
+            return;
+          }
+          if (payload.to && payload.to !== user.id) {
+            console.log("ICE not for us");
+            return;
+          }
           await handleIceCandidate(payload.from, payload.candidate);
         })
         .subscribe();
@@ -149,6 +173,15 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
 
   const createPeerConnection = async (peerId: string, isInitiator: boolean) => {
     console.log(`Creating peer connection with ${peerId}, initiator: ${isInitiator}`);
+    
+    // Get current user ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("No user found when creating peer connection");
+      return;
+    }
+    const currentUserId = user.id;
+    
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -182,7 +215,7 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
           type: "broadcast",
           event: "webrtc_ice",
           payload: {
-            from: userId,
+            from: currentUserId,
             to: peerId,
             candidate: event.candidate,
           },
@@ -211,7 +244,7 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
           type: "broadcast",
           event: "webrtc_offer",
           payload: {
-            from: userId,
+            from: currentUserId,
             to: peerId,
             offer: offer,
           },
@@ -221,23 +254,32 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
   };
 
   const handleOffer = async (peerId: string, offer: RTCSessionDescriptionInit) => {
+    console.log("Handling offer from", peerId);
     let pc = peerConnectionsRef.current.get(peerId);
     if (!pc) {
+      console.log("No existing peer connection, creating one");
       await createPeerConnection(peerId, false);
       pc = peerConnectionsRef.current.get(peerId);
     }
 
     if (pc) {
+      console.log("Setting remote description");
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log("Creating answer");
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
+      console.log("Answer created, sending back");
+
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
       if (channelRef.current) {
         await channelRef.current.send({
           type: "broadcast",
           event: "webrtc_answer",
           payload: {
-            from: userId,
+            from: user.id,
             to: peerId,
             answer: answer,
           },
