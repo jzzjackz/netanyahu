@@ -71,6 +71,16 @@ create table if not exists public.direct_conversations (
   check (user_a_id < user_b_id)
 );
 
+-- Invite codes (for invite links)
+create table if not exists public.invite_codes (
+  id uuid primary key default gen_random_uuid(),
+  server_id uuid references public.servers(id) on delete cascade not null,
+  code text unique not null,
+  created_by uuid references auth.users(id) on delete set null,
+  expires_at timestamptz,
+  created_at timestamptz default now()
+);
+
 -- Direct messages
 create table if not exists public.direct_messages (
   id uuid primary key default gen_random_uuid(),
@@ -88,6 +98,7 @@ alter table public.server_members enable row level security;
 alter table public.channels enable row level security;
 alter table public.messages enable row level security;
 alter table public.friend_requests enable row level security;
+alter table public.invite_codes enable row level security;
 alter table public.direct_conversations enable row level security;
 alter table public.direct_messages enable row level security;
 
@@ -115,6 +126,10 @@ create policy "server_members_insert_owner_admin" on public.server_members for i
     or (
       not exists (select 1 from public.server_members sm2 where sm2.server_id = server_members.server_id)
       and exists (select 1 from public.servers s where s.id = server_members.server_id and s.owner_id = auth.uid())
+    )
+    or (
+      auth.uid() = server_members.user_id
+      and exists (select 1 from public.invite_codes ic where ic.server_id = server_members.server_id)
     )
   );
 create policy "server_members_delete_self_or_admin" on public.server_members for delete to authenticated
@@ -154,6 +169,15 @@ create policy "messages_insert" on public.messages for insert to authenticated
   ));
 create policy "messages_update_author" on public.messages for update to authenticated using (author_id = auth.uid());
 create policy "messages_delete_author" on public.messages for delete to authenticated using (author_id = auth.uid());
+
+-- Invite codes: any authenticated can read (for join by code); owner/admin can create; owner can delete
+create policy "invite_codes_select_authenticated" on public.invite_codes for select to authenticated using (true);
+create policy "invite_codes_insert_owner_admin" on public.invite_codes for insert to authenticated
+  with check (exists (
+    select 1 from public.server_members m where m.server_id = invite_codes.server_id and m.user_id = auth.uid() and m.role in ('owner','admin')
+  ));
+create policy "invite_codes_delete_owner" on public.invite_codes for delete to authenticated
+  using (exists (select 1 from public.servers s where s.id = invite_codes.server_id and s.owner_id = auth.uid()));
 
 -- Friend requests: participants can read; authenticated can create (from_user = self)
 create policy "friend_requests_select" on public.friend_requests for select to authenticated

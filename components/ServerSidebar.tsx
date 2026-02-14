@@ -13,6 +13,13 @@ export default function ServerSidebar() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [contextServer, setContextServer] = useState<Server | null>(null);
+  const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+  }, [supabase.auth]);
 
   useEffect(() => {
     const fetchServers = async () => {
@@ -53,6 +60,15 @@ export default function ServerSidebar() {
     setCreating(false);
   };
 
+  const handleDeleteServer = async (s: Server) => {
+    if (!userId || s.owner_id !== userId) return;
+    if (!confirm(`Delete server "${s.name}"? This cannot be undone.`)) return;
+    await supabase.from("servers").delete().eq("id", s.id);
+    setServers((prev) => prev.filter((x) => x.id !== s.id));
+    if (currentServerId === s.id) setServer(null);
+    setContextServer(null);
+  };
+
   if (loading) {
     return (
       <div className="flex w-[72px] flex-col items-center gap-2 bg-[#1e1f22] py-3">
@@ -77,6 +93,13 @@ export default function ServerSidebar() {
           key={s.id}
           type="button"
           onClick={() => setServer(s.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (s.owner_id === userId) {
+              setContextServer(s);
+              setContextPos({ x: e.clientX, y: e.clientY });
+            }
+          }}
           className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] text-lg font-bold transition hover:rounded-xl hover:bg-indigo-500 ${currentServerId === s.id ? "rounded-xl bg-indigo-500" : ""}`}
           title={s.name}
         >
@@ -95,6 +118,30 @@ export default function ServerSidebar() {
       >
         +
       </button>
+      {contextServer && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setContextServer(null)} aria-hidden />
+          <div
+            className="fixed z-50 rounded bg-[#313338] py-1 shadow-xl"
+            style={{ left: contextPos.x, top: contextPos.y }}
+          >
+          <button
+            type="button"
+            onClick={() => { handleDeleteServer(contextServer); setContextServer(null); }}
+            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/10"
+          >
+            Delete Server
+          </button>
+          <button
+            type="button"
+            onClick={() => setContextServer(null)}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-white/10"
+          >
+            Cancel
+          </button>
+          </div>
+        </>
+      )}
       {createOpen && (
         <div className="fixed left-0 top-0 z-50 flex h-full w-full items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-lg bg-[#313338] p-4 shadow-xl">

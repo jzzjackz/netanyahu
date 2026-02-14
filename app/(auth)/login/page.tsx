@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "../../../lib/supabaseClient";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect") ?? "/";
   const supabase = createSupabaseBrowserClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +25,7 @@ export default function LoginPage() {
     if (error) {
       setError(error.message);
     } else {
-      window.location.href = "/";
+      window.location.href = redirect;
     }
   };
 

@@ -71,3 +71,12 @@ export interface DirectMessage {
   edited_at: string | null;
   profiles?: Profile | null;
 }
+
+export interface InviteCode {
+  id: number;
+  server_id: number;
+  code: string;
+  created_by: number | null;
+  expires_at: string | null;
+  created_at: string;
+}

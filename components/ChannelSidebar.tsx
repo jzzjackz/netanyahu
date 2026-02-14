@@ -14,6 +14,9 @@ export default function ChannelSidebar() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteGenerating, setInviteGenerating] = useState(false);
 
   useEffect(() => {
     if (!currentServerId) {
@@ -34,6 +37,28 @@ export default function ChannelSidebar() {
     };
     load();
   }, [currentServerId, supabase]);
+
+  const handleGenerateInvite = async () => {
+    if (!currentServerId || inviteGenerating) return;
+    setInviteGenerating(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const code = Math.random().toString(36).slice(2, 10);
+    const { error } = await supabase.from("invite_codes").insert({
+      server_id: currentServerId,
+      code,
+      created_by: user.id,
+    });
+    setInviteGenerating(false);
+    if (error) return;
+    const url = `${typeof window !== "undefined" ? window.location.origin : ""}/invite/${code}`;
+    setInviteLink(url);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,8 +103,16 @@ export default function ChannelSidebar() {
 
   return (
     <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
-      <div className="flex h-12 items-center border-b border-[#1e1f22] px-4 shadow-sm">
+      <div className="flex h-12 items-center justify-between border-b border-[#1e1f22] px-4 shadow-sm">
         <h2 className="truncate font-semibold">{server?.name ?? "Server"}</h2>
+        <button
+          type="button"
+          onClick={() => { setInviteOpen(true); setInviteLink(""); }}
+          className="rounded p-1 text-gray-400 transition hover:bg-white/5 hover:text-white"
+          title="Invite People"
+        >
+          <span className="text-sm">🔗</span>
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto py-2">
         <div className="px-2">
@@ -128,6 +161,47 @@ export default function ChannelSidebar() {
           </>
         )}
       </div>
+      {inviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-lg bg-[#313338] p-4 shadow-xl">
+            <h3 className="mb-3 font-semibold">Invite People</h3>
+            {!inviteLink ? (
+              <button
+                type="button"
+                onClick={handleGenerateInvite}
+                disabled={inviteGenerating}
+                className="w-full rounded bg-indigo-500 py-2 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50"
+              >
+                {inviteGenerating ? "Generating..." : "Generate invite link"}
+              </button>
+            ) : (
+              <>
+                <p className="mb-2 text-xs text-gray-400">Link copied to clipboard</p>
+                <input
+                  type="text"
+                  readOnly
+                  value={inviteLink}
+                  className="mb-3 w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(inviteLink)}
+                  className="mb-2 w-full rounded bg-indigo-500 py-2 text-sm font-medium hover:bg-indigo-600"
+                >
+                  Copy again
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setInviteOpen(false)}
+              className="mt-2 w-full rounded py-1.5 text-sm hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-sm rounded-lg bg-[#313338] p-4 shadow-xl">

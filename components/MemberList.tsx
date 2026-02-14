@@ -53,11 +53,11 @@ export default function MemberList() {
         {members.map((m) => (
           <div key={m.user_id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold">
-              {(m.profiles?.username ?? "?").toString().slice(0, 1).toUpperCase()}
+              {(m.profiles?.username ?? `User-${m.user_id.slice(-6)}`).slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1 truncate">
               <span className="text-sm font-medium text-gray-200">
-                {m.profiles?.username ?? "Unknown"}
+                {m.profiles?.username ?? `User-${m.user_id.slice(-6)}`}
               </span>
               <span className="ml-1 text-xs text-gray-500">{m.role}</span>
             </div>
