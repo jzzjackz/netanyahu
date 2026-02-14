@@ -517,7 +517,13 @@ function DMArea({ conversationId }: { conversationId: string }) {
         
         // Show notification if message is from other user
         const { data: { user } } = await supabase.auth.getUser();
+        console.log("New DM message:", { 
+          authorId: newRow.author_id, 
+          currentUserId: user?.id, 
+          shouldNotify: newRow.author_id !== user?.id 
+        });
         if (newRow.author_id !== user?.id) {
+          console.log("Setting notification:", profile?.username);
           setNotification({
             sender: profile?.username || "Someone",
             message: newRow.content || "Sent an attachment"
