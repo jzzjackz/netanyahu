@@ -41,6 +41,7 @@ export default function AppShell() {
     if (!userId) return;
 
     console.log("🔔 Setting up global DM notification listener for user:", userId);
+    console.log("Current conversation ID:", currentConversationId);
 
     const channel = supabase
       .channel("global_dm_notifications")
@@ -52,13 +53,16 @@ export default function AppShell() {
           table: "direct_messages"
         },
         async (payload) => {
+          console.log("🔥 RAW PAYLOAD RECEIVED:", payload);
           const newMessage = payload.new as DirectMessage;
           
           console.log("📨 New DM detected:", {
             authorId: newMessage.author_id,
             currentUserId: userId,
             conversationId: newMessage.conversation_id,
-            currentConversationId
+            currentConversationId,
+            isOwnMessage: newMessage.author_id === userId,
+            isCurrentConvo: newMessage.conversation_id === currentConversationId
           });
 
           // Only show notification if:
@@ -77,6 +81,8 @@ export default function AppShell() {
             const senderName = (profile as Profile)?.username || "Someone";
             const messageText = newMessage.content || "Sent an attachment";
 
+            console.log("Setting notification state:", { senderName, messageText });
+
             // Show in-app notification
             setNotification({
               sender: senderName,
@@ -85,28 +91,31 @@ export default function AppShell() {
 
             // Show browser notification if permission granted
             if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+              console.log("Showing browser notification");
               const browserNotif = new Notification(`${senderName} sent you a message`, {
                 body: messageText,
                 icon: "/favicon.ico",
-                tag: newMessage.conversation_id, // Prevents duplicate notifications
+                tag: newMessage.conversation_id,
                 requireInteraction: false,
               });
 
-              // Auto-close after 5 seconds
               setTimeout(() => browserNotif.close(), 5000);
 
-              // Optional: Click to focus window
               browserNotif.onclick = () => {
                 window.focus();
                 browserNotif.close();
               };
             }
           } else {
-            console.log("⏭️ Skipping notification (own message or viewing conversation)");
+            console.log("⏭️ Skipping notification:", {
+              reason: newMessage.author_id === userId ? "own message" : "viewing conversation"
+            });
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Realtime subscription status:", status);
+      });
 
     return () => {
       console.log("🔕 Cleaning up global DM notification listener");
