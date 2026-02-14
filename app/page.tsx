@@ -4,10 +4,9 @@ export default function Home() {
   return (
     <div className="flex h-full w-full items-center justify-center bg-[#1e1f22] text-white">
       <div className="flex flex-col items-center gap-6 rounded-lg bg-[#313338] px-10 py-12 shadow-lg">
-        <h1 className="text-3xl font-semibold">Discord Clone</h1>
+        <h1 className="text-3xl font-semibold">Commz</h1>
         <p className="max-w-md text-center text-sm text-gray-300">
-          Realtime text, voice, and servers powered by Next.js and Supabase.
-          Sign in to start chatting.
+          Discord alternative for the real commies
         </p>
         <div className="flex gap-3">
           <Link
