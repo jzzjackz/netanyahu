@@ -30,6 +30,7 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
   useEffect(() => {
     const initAudio = async () => {
       try {
+        console.log("Requesting microphone access...");
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             echoCancellation: true,
@@ -38,11 +39,12 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
           }, 
           video: false 
         });
+        console.log("Microphone access granted!", stream);
         localStreamRef.current = stream;
         setIsConnecting(false);
       } catch (error) {
         console.error("Failed to get audio stream:", error);
-        alert("Could not access microphone. Please check permissions.");
+        alert("Could not access microphone. Please check permissions and make sure you're on HTTPS.");
         onLeave();
       }
     };
@@ -65,9 +67,11 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
     if (isConnecting) return;
 
     const init = async () => {
+      console.log("Initializing voice channel signaling...");
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
+      console.log("User ID:", user.id);
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -77,9 +81,11 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
 
       const channel = supabase.channel(`voice:${channelId}`);
       channelRef.current = channel;
+      console.log("Subscribing to channel:", `voice:${channelId}`);
 
       channel
         .on("broadcast", { event: "user_joined" }, async ({ payload }) => {
+          console.log("User joined:", payload);
           if (payload.id === user.id) return;
           
           setParticipants((prev) => {
@@ -87,9 +93,11 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
             return [...prev, { id: payload.id, username: payload.username }];
           });
 
+          console.log("Creating peer connection for:", payload.id);
           await createPeerConnection(payload.id, true);
         })
         .on("broadcast", { event: "user_left" }, ({ payload }) => {
+          console.log("User left:", payload);
           setParticipants((prev) => prev.filter((p) => p.id !== payload.id));
           
           const pc = peerConnectionsRef.current.get(payload.id);
@@ -105,24 +113,29 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
           }
         })
         .on("broadcast", { event: "webrtc_offer" }, async ({ payload }) => {
+          console.log("Received WebRTC offer from:", payload.from);
           if (payload.to !== user.id) return;
           await handleOffer(payload.from, payload.offer);
         })
         .on("broadcast", { event: "webrtc_answer" }, async ({ payload }) => {
+          console.log("Received WebRTC answer from:", payload.from);
           if (payload.to !== user.id) return;
           await handleAnswer(payload.from, payload.answer);
         })
         .on("broadcast", { event: "webrtc_ice" }, async ({ payload }) => {
+          console.log("Received ICE candidate from:", payload.from);
           if (payload.to !== user.id) return;
           await handleIceCandidate(payload.from, payload.candidate);
         })
         .subscribe();
 
+      console.log("Broadcasting user joined...");
       await channel.send({
         type: "broadcast",
         event: "user_joined",
         payload: { id: user.id, username: profile?.username || "Unknown" },
       });
+      console.log("Voice channel initialized!");
     };
 
     init();
@@ -135,6 +148,7 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
   }, [channelId, supabase, isConnecting]);
 
   const createPeerConnection = async (peerId: string, isInitiator: boolean) => {
+    console.log(`Creating peer connection with ${peerId}, initiator: ${isInitiator}`);
     const pc = new RTCPeerConnection({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
@@ -143,22 +157,27 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
     });
 
     if (localStreamRef.current) {
+      console.log("Adding local tracks to peer connection");
       localStreamRef.current.getTracks().forEach(track => {
         pc.addTrack(track, localStreamRef.current!);
+        console.log("Added track:", track.kind);
       });
     }
 
     pc.ontrack = (event) => {
+      console.log("Received remote track from", peerId, event.track.kind);
       const remoteAudio = document.createElement('audio');
       remoteAudio.srcObject = event.streams[0];
       remoteAudio.autoplay = true;
       remoteAudio.muted = isDeafened;
       document.body.appendChild(remoteAudio);
       remoteAudiosRef.current.set(peerId, remoteAudio);
+      console.log("Remote audio element created and playing");
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate && channelRef.current) {
+        console.log("Sending ICE candidate to", peerId);
         channelRef.current.send({
           type: "broadcast",
           event: "webrtc_ice",
@@ -171,11 +190,21 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
       }
     };
 
+    pc.onconnectionstatechange = () => {
+      console.log(`Connection state with ${peerId}:`, pc.connectionState);
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`ICE connection state with ${peerId}:`, pc.iceConnectionState);
+    };
+
     peerConnectionsRef.current.set(peerId, pc);
 
     if (isInitiator) {
+      console.log("Creating offer for", peerId);
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      console.log("Offer created, sending to", peerId);
       
       if (channelRef.current) {
         await channelRef.current.send({
