@@ -23,12 +23,31 @@ export default function ServerSidebar() {
 
   useEffect(() => {
     const fetchServers = async () => {
-      const { data } = await supabase.from("servers").select("*").order("created_at", { ascending: true });
+      if (!userId) return;
+      // Get servers where user is a member
+      const { data: memberships } = await supabase
+        .from("server_members")
+        .select("server_id")
+        .eq("user_id", userId);
+      
+      if (!memberships || memberships.length === 0) {
+        setServers([]);
+        setLoading(false);
+        return;
+      }
+      
+      const serverIds = memberships.map(m => m.server_id);
+      const { data } = await supabase
+        .from("servers")
+        .select("*")
+        .in("id", serverIds)
+        .order("created_at", { ascending: true });
+      
       setServers((data as Server[]) ?? []);
       setLoading(false);
     };
     fetchServers();
-  }, [supabase]);
+  }, [supabase, userId]);
 
   const handleCreateServer = async (e: React.FormEvent) => {
     e.preventDefault();
