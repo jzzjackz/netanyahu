@@ -18,6 +18,7 @@ export default function ChatArea() {
   const [sending, setSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map()); // userId -> username
   const [userId, setUserId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -100,9 +101,17 @@ export default function ChatArea() {
       channel_id: currentChannelId,
       author_id: user.id,
       content: content.trim(),
+      reply_to: replyingTo?.id || null,
     });
     setContent("");
+    setReplyingTo(null);
     setSending(false);
+  };
+
+  const handleDelete = async (messageId: string) => {
+    if (!confirm("Delete this message?")) return;
+    await supabase.from("messages").delete().eq("id", messageId);
+    setMessages((prev) => prev.filter((m) => m.id !== messageId));
   };
 
   const handleTyping = async () => {
@@ -205,8 +214,29 @@ export default function ChatArea() {
               <span className="text-xs text-gray-500">
                 {m.created_at && format(new Date(m.created_at), "MMM d, HH:mm")}
               </span>
+              {m.reply_to && (
+                <div className="mb-1 ml-4 border-l-2 border-gray-600 pl-2 text-xs text-gray-400">
+                  Replying to a message
+                </div>
+              )}
               <div className="prose prose-invert max-w-none break-words text-gray-200">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+              </div>
+              <div className="mt-1 hidden gap-2 group-hover:flex">
+                <button
+                  onClick={() => setReplyingTo(m)}
+                  className="rounded bg-[#404249] px-2 py-1 text-xs hover:bg-[#4f5058]"
+                >
+                  Reply
+                </button>
+                {m.author_id === userId && (
+                  <button
+                    onClick={() => handleDelete(m.id)}
+                    className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
           </div>
