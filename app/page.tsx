@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
+import AppShell from "../components/AppShell";
 import type { Session } from "@supabase/supabase-js";
 
 export default function Home() {
@@ -23,10 +24,17 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-  };
+  useEffect(() => {
+    if (!session?.user) return;
+    const ensureProfile = async () => {
+      const { data: existing } = await supabase.from("profiles").select("id").eq("id", session.user.id).maybeSingle();
+      if (!existing) {
+        const username = session.user.email?.split("@")[0] ?? `user_${session.user.id.slice(0, 8)}`;
+        await supabase.from("profiles").upsert({ id: session.user.id, username }, { onConflict: "id" });
+      }
+    };
+    ensureProfile();
+  }, [session?.user?.id, supabase]);
 
   if (loading) {
     return (
@@ -37,26 +45,7 @@ export default function Home() {
   }
 
   if (session) {
-    return (
-      <div className="flex h-full w-full items-center justify-center bg-[#1e1f22] text-white">
-        <div className="flex flex-col items-center gap-6 rounded-lg bg-[#313338] px-10 py-12 shadow-lg">
-          <h1 className="text-3xl font-semibold">Commz</h1>
-          <p className="text-sm text-gray-300">
-            You’re logged in as{" "}
-            <span className="font-medium text-white">
-              {session.user?.email ?? "Unknown"}
-            </span>
-          </p>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded bg-white/10 px-5 py-2 text-sm font-semibold transition hover:bg-white/20"
-          >
-            Log out
-          </button>
-        </div>
-      </div>
-    );
+    return <AppShell />;
   }
 
   return (

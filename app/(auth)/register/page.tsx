@@ -15,16 +15,23 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       setError(error.message);
-    } else {
-      window.location.href = "/";
+      return;
     }
+    if (data.user) {
+      await supabase.from("profiles").upsert(
+        { id: data.user.id, username },
+        { onConflict: "id" }
+      );
+    }
+    setLoading(false);
+    window.location.href = "/";
   };
 
   return (

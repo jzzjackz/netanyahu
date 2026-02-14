@@ -1,0 +1,125 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createSupabaseBrowserClient } from "../lib/supabaseClient";
+import { useAppStore } from "../lib/store";
+import type { Server } from "../lib/types";
+
+export default function ServerSidebar() {
+  const supabase = createSupabaseBrowserClient();
+  const { currentServerId, setServer } = useAppStore();
+  const [servers, setServers] = useState<Server[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    const fetchServers = async () => {
+      const { data } = await supabase.from("servers").select("*").order("created_at", { ascending: true });
+      setServers((data as Server[]) ?? []);
+      setLoading(false);
+    };
+    fetchServers();
+  }, [supabase]);
+
+  const handleCreateServer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim() || creating) return;
+    setCreating(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setCreating(false);
+      return;
+    }
+    const { data: server, error: serverErr } = await supabase
+      .from("servers")
+      .insert({ owner_id: user.id, name: newName.trim() })
+      .select("*")
+      .single();
+    if (serverErr || !server) {
+      setCreating(false);
+      return;
+    }
+    await supabase.from("server_members").insert({
+      server_id: server.id,
+      user_id: user.id,
+      role: "owner",
+    });
+    setServers((prev) => [...prev, server as Server]);
+    setServer(server.id);
+    setNewName("");
+    setCreateOpen(false);
+    setCreating(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex w-[72px] flex-col items-center gap-2 bg-[#1e1f22] py-3">
+        <div className="h-12 w-12 animate-pulse rounded-2xl bg-[#313338]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-[72px] flex-shrink-0 flex-col items-center gap-2 bg-[#1e1f22] py-3">
+      <button
+        type="button"
+        onClick={() => setServer(null)}
+        className={`flex h-12 w-12 items-center justify-center rounded-2xl transition hover:rounded-xl hover:bg-indigo-500 ${!currentServerId ? "rounded-xl bg-indigo-500" : "bg-[#313338]"}`}
+        title="Home"
+      >
+        <span className="text-xl">⌂</span>
+      </button>
+      <div className="my-1 h-px w-8 bg-[#313338]" />
+      {servers.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          onClick={() => setServer(s.id)}
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] text-lg font-bold transition hover:rounded-xl hover:bg-indigo-500 ${currentServerId === s.id ? "rounded-xl bg-indigo-500" : ""}`}
+          title={s.name}
+        >
+          {s.icon_url ? (
+            <img src={s.icon_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+          ) : (
+            (s.name[0] ?? "?").toUpperCase()
+          )}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => setCreateOpen(true)}
+        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] text-xl transition hover:rounded-xl hover:bg-green-600"
+        title="Add Server"
+      >
+        +
+      </button>
+      {createOpen && (
+        <div className="fixed left-0 top-0 z-50 flex h-full w-full items-center justify-center bg-black/50">
+          <div className="w-full max-w-sm rounded-lg bg-[#313338] p-4 shadow-xl">
+            <h3 className="mb-3 font-semibold">Create Server</h3>
+            <form onSubmit={handleCreateServer}>
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Server name"
+                className="mb-3 w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none ring-1 ring-[#1e1f22] focus:ring-indigo-500"
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setCreateOpen(false)} className="rounded px-3 py-1.5 text-sm hover:bg-white/10">
+                  Cancel
+                </button>
+                <button type="submit" disabled={creating || !newName.trim()} className="rounded bg-indigo-500 px-3 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50">
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
