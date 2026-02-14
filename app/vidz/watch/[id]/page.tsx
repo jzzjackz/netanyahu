@@ -42,7 +42,10 @@ export default function WatchVideo() {
       // Load video
       const { data: videoData } = await supabase
         .from("videos")
-        .select("*, profiles:uploader_id(*)")
+        .select(`
+          *,
+          profiles!videos_uploader_id_fkey(*)
+        `)
         .eq("id", videoId)
         .single();
       
@@ -84,7 +87,10 @@ export default function WatchVideo() {
       // Load comments
       const { data: commentsData } = await supabase
         .from("video_comments")
-        .select("*, profiles:user_id(*)")
+        .select(`
+          *,
+          profiles!video_comments_user_id_fkey(*)
+        `)
         .eq("video_id", videoId)
         .order("created_at", { ascending: false });
       
@@ -161,7 +167,10 @@ export default function WatchVideo() {
         user_id: userId,
         content: newComment.trim(),
       })
-      .select("*, profiles:user_id(*)")
+      .select(`
+        *,
+        profiles!video_comments_user_id_fkey(*)
+      `)
       .single();
     
     if (data) {

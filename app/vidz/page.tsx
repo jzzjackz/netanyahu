@@ -27,7 +27,10 @@ export default function VidzHome() {
     const loadVideos = async () => {
       const { data } = await supabase
         .from("videos")
-        .select("*, profiles:uploader_id(*)")
+        .select(`
+          *,
+          profiles!videos_uploader_id_fkey(*)
+        `)
         .order("created_at", { ascending: false })
         .limit(50);
       setVideos((data as any) ?? []);
