@@ -42,26 +42,12 @@ export default function InvitePage() {
         return;
       }
 
-      // Get the user's ID from your users table
-      // Since you're using custom users table, you need to map auth.user.id to users.id
-      const { data: userData } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", session.user.email)
-        .maybeSingle();
-
-      if (!userData) {
-        setStatus("error");
-        setMessage("User not found");
-        return;
-      }
-
-      // Try to join the server
+      // Try to join the server using auth.user.id directly
       const { error: joinError } = await supabase
         .from("server_members")
         .insert({
           server_id: invite.server_id,
-          user_id: userData.id,
+          user_id: session.user.id,
           role: "member",
         });
 
