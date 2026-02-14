@@ -516,7 +516,8 @@ function DMArea({ conversationId }: { conversationId: string }) {
         setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
         
         // Show notification if message is from other user and not currently viewing this conversation
-        if (newRow.author_id !== userId && document.hidden) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (newRow.author_id !== user?.id && document.hidden) {
           setNotification({
             sender: profile?.username || "Someone",
             message: newRow.content || "Sent an attachment"
@@ -525,7 +526,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
       }
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [conversationId, userId, supabase]);
+  }, [conversationId, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
