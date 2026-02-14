@@ -81,19 +81,22 @@ export default function ChatArea() {
         // Get reply message if exists
         let replyMessage: Message | null = null;
         if (newRow.reply_to) {
-          const existing = messages.find(m => m.id === newRow.reply_to);
-          if (existing) {
-            replyMessage = existing;
-          }
+          setMessages((prev) => {
+            const existing = prev.find(m => m.id === newRow.reply_to);
+            if (existing) {
+              replyMessage = existing;
+            }
+            return [...prev, { ...newRow, profiles: profile, reply_message: replyMessage }];
+          });
+        } else {
+          setMessages((prev) => [...prev, { ...newRow, profiles: profile, reply_message: null }]);
         }
-        
-        setMessages((prev) => [...prev, { ...newRow, profiles: profile, reply_message: replyMessage }]);
       }
     ).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentChannelId, messages, supabase]);
+  }, [currentChannelId, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
