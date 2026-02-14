@@ -160,7 +160,7 @@ export default function ChannelSidebar() {
     };
   }, [currentServerId, channels, supabase]);
 
-  useEffect(() => {
+  const handleGenerateInvite = async () => {
 
   const handleGenerateInvite = async () => {
     if (!currentServerId || inviteGenerating) return;
