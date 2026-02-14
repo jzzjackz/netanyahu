@@ -64,14 +64,9 @@ export default function VidzHome() {
     <div className="min-h-screen bg-[#0f0f0f] text-white">
       {/* Header */}
       <header className="sticky top-0 z-50 flex items-center justify-between border-b border-[#272727] bg-[#0f0f0f] px-6 py-3">
-        <div className="flex items-center gap-6">
-          <Link href="/vidz" className="text-xl font-bold">
-            AllInOne Vidz
-          </Link>
-          <Link href="/" className="text-sm text-gray-400 hover:text-white">
-            Back to Commz
-          </Link>
-        </div>
+        <Link href="/vidz" className="text-xl font-bold">
+          AllInOne Vidz
+        </Link>
         <div className="flex items-center gap-4">
           <Link
             href="/vidz/upload"

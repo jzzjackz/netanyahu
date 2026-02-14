@@ -212,9 +212,6 @@ export default function WatchVideo() {
         <Link href="/vidz" className="text-xl font-bold">
           AllInOne Vidz
         </Link>
-        <Link href="/" className="text-sm text-gray-400 hover:text-white">
-          Back to Commz
-        </Link>
       </header>
 
       <main className="mx-auto max-w-[1800px] p-6">
