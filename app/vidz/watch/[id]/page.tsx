@@ -37,7 +37,7 @@ export default function WatchVideo() {
     
     const loadVideo = async () => {
       // Increment view count
-      await supabase.rpc("increment_video_views", { video_id: videoId }).catch(() => {});
+      await supabase.rpc("increment_video_views", { video_id: videoId });
       
       // Load video
       const { data: videoData } = await supabase
