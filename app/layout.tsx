@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Discord Clone",
-  description: "Realtime chat and voice built with Next.js and Supabase",
+  title: "Commz",
+  description: "discord alternative",
 };
 
 export default function RootLayout({
