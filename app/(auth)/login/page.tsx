@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "../../../lib/supabaseClient";
 
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/";
   const supabase = createSupabaseBrowserClient();
@@ -75,6 +75,20 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#1e1f22] text-white">
+        <div className="w-full max-w-md rounded-md bg-[#313338] p-8 shadow-lg">
+          <h1 className="mb-6 text-center text-2xl font-semibold">Loading...</h1>
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
 
