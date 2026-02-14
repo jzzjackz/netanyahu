@@ -20,6 +20,7 @@ export default function ChannelSidebar() {
   const [inviteLink, setInviteLink] = useState("");
   const [inviteGenerating, setInviteGenerating] = useState(false);
   const [channelType, setChannelType] = useState<"text" | "voice">("text");
+  const [voiceChannelMembers, setVoiceChannelMembers] = useState<Map<string, Array<{ id: string; username: string }>>>(new Map());
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -119,6 +120,47 @@ export default function ChannelSidebar() {
     };
     load();
   }, [currentServerId, userId, supabase]);
+
+  // Subscribe to voice channel presence
+  useEffect(() => {
+    if (!currentServerId || channels.length === 0) return;
+
+    const voiceChannels = channels.filter(c => c.type === "voice");
+    if (voiceChannels.length === 0) return;
+
+    const subscriptions = voiceChannels.map(vc => {
+      const channel = supabase.channel(`voice_presence:${vc.id}`);
+      
+      channel
+        .on("broadcast", { event: "user_joined" }, ({ payload }) => {
+          setVoiceChannelMembers(prev => {
+            const newMap = new Map(prev);
+            const members = newMap.get(vc.id) || [];
+            if (!members.some(m => m.id === payload.id)) {
+              newMap.set(vc.id, [...members, { id: payload.id, username: payload.username }]);
+            }
+            return newMap;
+          });
+        })
+        .on("broadcast", { event: "user_left" }, ({ payload }) => {
+          setVoiceChannelMembers(prev => {
+            const newMap = new Map(prev);
+            const members = newMap.get(vc.id) || [];
+            newMap.set(vc.id, members.filter(m => m.id !== payload.id));
+            return newMap;
+          });
+        })
+        .subscribe();
+
+      return channel;
+    });
+
+    return () => {
+      subscriptions.forEach(sub => supabase.removeChannel(sub));
+    };
+  }, [currentServerId, channels, supabase]);
+
+  useEffect(() => {
 
   const handleGenerateInvite = async () => {
     if (!currentServerId || inviteGenerating) return;
@@ -260,17 +302,31 @@ export default function ChannelSidebar() {
             <div className="mt-2 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-gray-500">
               <span>🔊</span> Voice
             </div>
-            {voiceChannels.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setChannel(c.id)}
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-gray-100"
-              >
-                <span>🔊</span>
-                <span className="truncate">{c.name}</span>
-              </button>
-            ))}
+            {voiceChannels.map((c) => {
+              const members = voiceChannelMembers.get(c.id) || [];
+              return (
+                <div key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => setChannel(c.id)}
+                    className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
+                  >
+                    <span>🔊</span>
+                    <span className="truncate">{c.name}</span>
+                  </button>
+                  {members.length > 0 && (
+                    <div className="ml-6 space-y-1 py-1">
+                      {members.map(member => (
+                        <div key={member.id} className="flex items-center gap-2 px-2 py-1 text-xs text-gray-400">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          <span>{member.username}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </>
         )}
       </div>

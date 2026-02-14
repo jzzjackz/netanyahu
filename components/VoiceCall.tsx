@@ -84,6 +84,9 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
       channelRef.current = channel;
       console.log("Subscribing to channel:", `voice:${channelId}`);
 
+      // Also subscribe to presence channel for sidebar
+      const presenceChannel = supabase.channel(`voice_presence:${channelId}`);
+
       channel
         .on("broadcast", { event: "user_joined" }, async ({ payload }) => {
           console.log("User joined:", payload);
@@ -160,6 +163,14 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
         event: "user_joined",
         payload: { id: user.id, username: profile?.username || "Unknown" },
       });
+      
+      // Broadcast to presence channel for sidebar
+      await presenceChannel.send({
+        type: "broadcast",
+        event: "user_joined",
+        payload: { id: user.id, username: profile?.username || "Unknown" },
+      });
+      
       console.log("Voice channel initialized!");
     };
 
@@ -352,6 +363,14 @@ export default function VoiceCall({ channelId, channelName, onLeave }: VoiceCall
   const handleLeave = async () => {
     if (userId && channelRef.current) {
       await channelRef.current.send({
+        type: "broadcast",
+        event: "user_left",
+        payload: { id: userId },
+      });
+      
+      // Broadcast to presence channel
+      const presenceChannel = supabase.channel(`voice_presence:${channelId}`);
+      await presenceChannel.send({
         type: "broadcast",
         event: "user_left",
         payload: { id: userId },

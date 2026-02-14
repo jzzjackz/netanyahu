@@ -15,6 +15,7 @@ export default function AppShell() {
   const supabase = createSupabaseBrowserClient();
   const { currentServerId, currentChannelId } = useAppStore();
   const [voiceChannel, setVoiceChannel] = useState<Channel | null>(null);
+  const [voiceChannelKey, setVoiceChannelKey] = useState(0);
 
   useEffect(() => {
     if (!currentChannelId) {
@@ -31,6 +32,7 @@ export default function AppShell() {
       
       if (data && (data as Channel).type === "voice") {
         setVoiceChannel(data as Channel);
+        setVoiceChannelKey(prev => prev + 1); // Force remount
       } else {
         setVoiceChannel(null);
       }
@@ -47,9 +49,13 @@ export default function AppShell() {
       {currentServerId ? <MemberList /> : <FriendsPanel />}
       {voiceChannel && (
         <VoiceCall
+          key={voiceChannelKey}
           channelId={voiceChannel.id}
           channelName={voiceChannel.name}
-          onLeave={() => setVoiceChannel(null)}
+          onLeave={() => {
+            setVoiceChannel(null);
+            setVoiceChannelKey(prev => prev + 1);
+          }}
         />
       )}
     </div>
