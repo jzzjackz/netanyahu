@@ -33,7 +33,7 @@ function LoginForm() {
     <div className="flex min-h-screen w-full items-center justify-center bg-[#1e1f22] text-white">
       <div className="w-full max-w-md rounded-md bg-[#313338] p-8 shadow-lg">
         <h1 className="mb-6 text-center text-2xl font-semibold">
-          Welcome back!
+          Welcome back, Please sign in with you AllInOne account.
         </h1>
         <form className="space-y-4" onSubmit={handleEmailLogin}>
           <div>
