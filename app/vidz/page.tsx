@@ -25,15 +25,28 @@ export default function VidzHome() {
   useEffect(() => {
     if (!session) return;
     const loadVideos = async () => {
-      const { data } = await supabase
+      const { data: videosData } = await supabase
         .from("videos")
-        .select(`
-          *,
-          profiles!videos_uploader_id_fkey(*)
-        `)
+        .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
-      setVideos((data as any) ?? []);
+      
+      if (videosData && videosData.length > 0) {
+        const uploaderIds = [...new Set(videosData.map((v: any) => v.uploader_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", uploaderIds);
+        
+        const profileMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
+        const videosWithProfiles = videosData.map((v: any) => ({
+          ...v,
+          profiles: profileMap.get(v.uploader_id),
+        }));
+        setVideos(videosWithProfiles);
+      } else {
+        setVideos([]);
+      }
       setLoading(false);
     };
     loadVideos();

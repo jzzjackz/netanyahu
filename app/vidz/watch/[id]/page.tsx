@@ -42,15 +42,19 @@ export default function WatchVideo() {
       // Load video
       const { data: videoData } = await supabase
         .from("videos")
-        .select(`
-          *,
-          profiles!videos_uploader_id_fkey(*)
-        `)
+        .select("*")
         .eq("id", videoId)
         .single();
       
       if (videoData) {
-        setVideo(videoData as any);
+        // Load uploader profile
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", videoData.uploader_id)
+          .single();
+        
+        setVideo({ ...videoData, profiles: profileData } as any);
         
         // Load reactions
         const { data: reactionsData } = await supabase
@@ -87,14 +91,26 @@ export default function WatchVideo() {
       // Load comments
       const { data: commentsData } = await supabase
         .from("video_comments")
-        .select(`
-          *,
-          profiles!video_comments_user_id_fkey(*)
-        `)
+        .select("*")
         .eq("video_id", videoId)
         .order("created_at", { ascending: false });
       
-      setComments((commentsData as any) ?? []);
+      if (commentsData && commentsData.length > 0) {
+        const userIds = [...new Set(commentsData.map((c: any) => c.user_id))];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", userIds);
+        
+        const profileMap = new Map((profilesData ?? []).map((p: any) => [p.id, p]));
+        const commentsWithProfiles = commentsData.map((c: any) => ({
+          ...c,
+          profiles: profileMap.get(c.user_id),
+        }));
+        setComments(commentsWithProfiles);
+      } else {
+        setComments([]);
+      }
       setLoading(false);
     };
     
@@ -160,21 +176,24 @@ export default function WatchVideo() {
     e.preventDefault();
     if (!newComment.trim() || !userId) return;
     
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("video_comments")
       .insert({
         video_id: videoId,
         user_id: userId,
         content: newComment.trim(),
       })
-      .select(`
-        *,
-        profiles!video_comments_user_id_fkey(*)
-      `)
+      .select("*")
       .single();
     
     if (data) {
-      setComments([data as any, ...comments]);
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      
+      setComments([{ ...data, profiles: profileData } as any, ...comments]);
       setNewComment("");
     }
   };
