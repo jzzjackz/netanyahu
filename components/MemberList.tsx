@@ -170,6 +170,12 @@ export default function MemberList() {
         </>
       )}
       <div className="mt-auto border-t border-[#1e1f22] p-2">
+        <a
+          href="/vidz"
+          className="mb-2 block w-full rounded px-2 py-1.5 text-center text-sm text-indigo-400 hover:bg-white/5"
+        >
+          🎬 AllInOne Vidz
+        </a>
         <button
           type="button"
           onClick={() => supabase.auth.signOut()}

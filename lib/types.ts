@@ -80,3 +80,27 @@ export interface InviteCode {
   expires_at: string | null;
   created_at: string;
 }
+
+export interface Video {
+  id: string;
+  uploader_id: string;
+  title: string;
+  description: string | null;
+  video_url: string;
+  thumbnail_url: string | null;
+  duration: number | null;
+  views: number;
+  created_at: string;
+  updated_at: string;
+  profiles?: Profile | null;
+}
+
+export interface VideoComment {
+  id: string;
+  video_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  profiles?: Profile | null;
+}
