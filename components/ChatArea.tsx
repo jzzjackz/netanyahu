@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import MessageEmbeds from "./MessageEmbeds";
 import PrivateCall from "./PrivateCall";
+import MessageNotification from "./MessageNotification";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -456,6 +457,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [notification, setNotification] = useState<{ sender: string; message: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -512,10 +514,18 @@ function DMArea({ conversationId }: { conversationId: string }) {
           profile = data as Profile | null;
         }
         setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
+        
+        // Show notification if message is from other user and not currently viewing this conversation
+        if (newRow.author_id !== userId && document.hidden) {
+          setNotification({
+            sender: profile?.username || "Someone",
+            message: newRow.content || "Sent an attachment"
+          });
+        }
       }
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [conversationId, supabase]);
+  }, [conversationId, userId, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -564,10 +574,35 @@ function DMArea({ conversationId }: { conversationId: string }) {
     setSending(false);
   };
 
+  const handleStartCall = async () => {
+    if (!userId || !otherUser) return;
+    
+    // Send incoming call notification
+    const channel = supabase.channel(`dm_call:${conversationId}`);
+    await channel.send({
+      type: "broadcast",
+      event: "incoming_call",
+      payload: {
+        from: userId,
+        to: otherUser.id,
+        username: (await supabase.from("profiles").select("username").eq("id", userId).single()).data?.username || "Unknown",
+      },
+    });
+    
+    setInCall(true);
+  };
+
   if (loading) return <div className="flex flex-1 items-center justify-center bg-[#313338]">Loading...</div>;
 
   return (
     <>
+      {notification && (
+        <MessageNotification
+          senderUsername={notification.sender}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
       {inCall && otherUser && (
         <PrivateCall
           conversationId={conversationId}
