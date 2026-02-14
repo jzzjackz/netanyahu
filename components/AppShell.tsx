@@ -148,6 +148,22 @@ export default function AppShell() {
           onClose={() => setNotification(null)}
         />
       )}
+      
+      {/* Debug: Test notification button */}
+      <button
+        onClick={() => {
+          console.log("🧪 Testing notification manually...");
+          setNotification({
+            sender: "Test User",
+            message: "This is a test notification!"
+          });
+        }}
+        className="fixed bottom-4 right-4 z-50 rounded bg-purple-600 px-4 py-2 text-sm font-medium hover:bg-purple-700"
+        title="Test notification"
+      >
+        Test Notification
+      </button>
+      
       <ServerSidebar />
       <ChannelSidebar />
       <ChatArea />
