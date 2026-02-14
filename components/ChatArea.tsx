@@ -515,9 +515,9 @@ function DMArea({ conversationId }: { conversationId: string }) {
         }
         setMessages((prev) => [...prev, { ...newRow, profiles: profile }]);
         
-        // Show notification if message is from other user and not currently viewing this conversation
+        // Show notification if message is from other user
         const { data: { user } } = await supabase.auth.getUser();
-        if (newRow.author_id !== user?.id && document.hidden) {
+        if (newRow.author_id !== user?.id) {
           setNotification({
             sender: profile?.username || "Someone",
             message: newRow.content || "Sent an attachment"
