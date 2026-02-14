@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ServerSidebar from "./ServerSidebar";
 import ChannelSidebar from "./ChannelSidebar";
 import ChatArea from "./ChatArea";
@@ -19,6 +19,13 @@ export default function AppShell() {
   const [voiceChannelKey, setVoiceChannelKey] = useState(0);
   const [notification, setNotification] = useState<{ sender: string; message: string } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  
+  // Use ref to track current conversation without causing re-subscriptions
+  const currentConversationIdRef = useRef(currentConversationId);
+  
+  useEffect(() => {
+    currentConversationIdRef.current = currentConversationId;
+  }, [currentConversationId]);
 
   // Get current user ID
   useEffect(() => {
@@ -42,6 +49,8 @@ export default function AppShell() {
 
     console.log("🔔 Setting up global DM notification listener for user:", userId);
 
+    let channels: ReturnType<typeof supabase.channel>[] = [];
+
     // Get all conversations this user is part of
     const setupListeners = async () => {
       const { data: conversations } = await supabase
@@ -57,7 +66,7 @@ export default function AppShell() {
       console.log(`Found ${conversations.length} conversations, setting up listeners...`);
 
       // Subscribe to each conversation
-      const channels = conversations.map((convo) => {
+      channels = conversations.map((convo) => {
         const channel = supabase
           .channel(`dm_notif:${convo.id}`)
           .on(
@@ -76,9 +85,9 @@ export default function AppShell() {
                 authorId: newMessage.author_id,
                 currentUserId: userId,
                 conversationId: newMessage.conversation_id,
-                currentConversationId,
+                currentConversationId: currentConversationIdRef.current,
                 isOwnMessage: newMessage.author_id === userId,
-                isCurrentConvo: newMessage.conversation_id === currentConversationId,
+                isCurrentConvo: newMessage.conversation_id === currentConversationIdRef.current,
               });
 
               // Only show notification if:
@@ -86,7 +95,7 @@ export default function AppShell() {
               // 2. User is not currently viewing this conversation
               if (
                 newMessage.author_id !== userId &&
-                newMessage.conversation_id !== currentConversationId
+                newMessage.conversation_id !== currentConversationIdRef.current
               ) {
                 console.log("✅ Showing notification for DM");
 
@@ -148,19 +157,16 @@ export default function AppShell() {
 
         return channel;
       });
-
-      // Cleanup function
-      return () => {
-        console.log("🔕 Cleaning up DM notification listeners");
-        channels.forEach((ch) => supabase.removeChannel(ch));
-      };
     };
 
     setupListeners();
 
-    // Note: We're not returning the cleanup function here because setupListeners is async
-    // This is a limitation, but the channels will be cleaned up when the component unmounts
-  }, [userId, currentConversationId, supabase]);
+    // Cleanup function
+    return () => {
+      console.log("🔕 Cleaning up DM notification listeners");
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [userId, supabase]); // Removed currentConversationId from dependencies
 
   useEffect(() => {
     if (!currentChannelId) {
@@ -196,22 +202,6 @@ export default function AppShell() {
           onClose={() => setNotification(null)}
         />
       )}
-      
-      {/* Debug: Test notification button */}
-      <button
-        onClick={() => {
-          console.log("🧪 Testing notification manually...");
-          setNotification({
-            sender: "Test User",
-            message: "This is a test notification!"
-          });
-        }}
-        className="fixed bottom-4 right-4 z-50 rounded bg-purple-600 px-4 py-2 text-sm font-medium hover:bg-purple-700"
-        title="Test notification"
-      >
-        Test Notification
-      </button>
-      
       <ServerSidebar />
       <ChannelSidebar />
       <ChatArea />
