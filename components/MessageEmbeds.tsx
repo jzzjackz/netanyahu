@@ -24,10 +24,22 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
 
   useEffect(() => {
     // Check for GIF URLs (GIPHY, Tenor, custom API, or any .gif)
-    const gifMatch = content.match(/(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)/i);
+    const gifMatch = content.match(/(https?:\/\/[^\s]+\.gif|https?:\/\/media[0-9]*\.giphy\.com\/media\/[^\s]+\/giphy\.gif|https?:\/\/[^\s]*giphy[^\s]*\.gif|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)/i);
     if (gifMatch) {
-      setGifUrl(gifMatch[1]);
-      checkIfFavorite(gifMatch[1]);
+      const url = gifMatch[1];
+      // For GIPHY URLs, ensure we're using the .gif version
+      if (url.includes('giphy.com') && !url.endsWith('.gif')) {
+        // Extract the ID and construct proper GIF URL
+        const idMatch = url.match(/\/([a-zA-Z0-9]+)(?:\/|\?|$)/);
+        if (idMatch) {
+          setGifUrl(`https://media.giphy.com/media/${idMatch[1]}/giphy.gif`);
+        } else {
+          setGifUrl(url);
+        }
+      } else {
+        setGifUrl(url);
+      }
+      checkIfFavorite(url);
       return; // Don't process other embeds if it's a GIF
     }
 
@@ -91,7 +103,7 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
   return (
     <>
       {gifUrl && (
-        <div className="group relative mt-2 inline-block">
+        <div className="group relative mt-2">
           <img
             src={gifUrl}
             alt="GIF"
