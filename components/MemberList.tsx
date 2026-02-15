@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
-import type { ServerMember, Profile } from "../lib/types";
+import type { ServerMember, Profile, UserStatus } from "../lib/types";
+import UserProfileModal from "./UserProfileModal";
 
 export default function MemberList() {
   const supabase = createSupabaseBrowserClient();
@@ -15,6 +16,26 @@ export default function MemberList() {
   const [isOwner, setIsOwner] = useState(false);
   const [contextMember, setContextMember] = useState<ServerMember | null>(null);
   const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
+  const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
+  const [editingOwnProfile, setEditingOwnProfile] = useState(false);
+
+  const getStatusColor = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "bg-green-500";
+      case "idle": return "bg-yellow-500";
+      case "dnd": return "bg-red-500";
+      case "invisible": return "bg-gray-500";
+    }
+  };
+
+  const getStatusLabel = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "Online";
+      case "idle": return "Idle";
+      case "dnd": return "Do Not Disturb";
+      case "invisible": return "Invisible";
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -124,10 +145,12 @@ export default function MemberList() {
         Members — {members.length}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
-        {members.map((m) => (
+        {members.map((m) => {
+          const isCurrentUser = m.user_id === userId;
+          return (
           <div 
             key={m.user_id} 
-            className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5"
+            className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5"
             onContextMenu={(e) => {
               e.preventDefault();
               if (isOwner && m.user_id !== userId) {
@@ -136,17 +159,56 @@ export default function MemberList() {
               }
             }}
           >
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold">
-              {(m.profiles?.username ?? `User-${m.user_id.slice(-6)}`).slice(0, 1).toUpperCase()}
+            <button
+              onClick={() => setProfileModalUserId(m.user_id)}
+              className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold hover:opacity-80"
+            >
+              {m.profiles?.avatar_url ? (
+                <img 
+                  src={m.profiles.avatar_url} 
+                  alt={m.profiles.username} 
+                  className="h-full w-full rounded-full object-cover" 
+                />
+              ) : (
+                (m.profiles?.username ?? `User-${m.user_id.slice(-6)}`).slice(0, 1).toUpperCase()
+              )}
+              <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#2b2d31] ${getStatusColor(m.profiles?.status || 'online')}`} />
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setProfileModalUserId(m.user_id)}
+                  className="truncate text-sm font-medium text-gray-200 hover:underline"
+                >
+                  {m.profiles?.username ?? `User-${m.user_id.slice(-6)}`}
+                </button>
+                {m.role === "owner" && <span className="text-xs">👑</span>}
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <span>{getStatusLabel(m.profiles?.status || 'online')}</span>
+                {m.profiles?.custom_status && (
+                  <>
+                    <span>•</span>
+                    <span className="truncate">{m.profiles.custom_status}</span>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="min-w-0 flex-1 truncate">
-              <span className="text-sm font-medium text-gray-200">
-                {m.profiles?.username ?? `User-${m.user_id.slice(-6)}`}
-              </span>
-              <span className="ml-1 text-xs text-gray-500">{m.role}</span>
-            </div>
+            {isCurrentUser && (
+              <button
+                onClick={() => setEditingOwnProfile(true)}
+                className="opacity-0 group-hover:opacity-100 rounded p-1 hover:bg-white/10"
+                title="Edit Profile"
+              >
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            )}
           </div>
-        ))}
+        );
+        })}
       </div>
       {contextMember && (
         <>
@@ -194,6 +256,18 @@ export default function MemberList() {
           Log out
         </button>
       </div>
+      {profileModalUserId && (
+        <UserProfileModal
+          userId={profileModalUserId}
+          onClose={() => setProfileModalUserId(null)}
+        />
+      )}
+      {editingOwnProfile && userId && (
+        <UserProfileModal
+          userId={userId}
+          onClose={() => setEditingOwnProfile(false)}
+        />
+      )}
     </div>
   );
 }

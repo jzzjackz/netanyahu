@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
-import type { FriendRequest, Profile, DirectConversation } from "../lib/types";
+import type { FriendRequest, Profile, DirectConversation, UserStatus } from "../lib/types";
+import UserProfileModal from "./UserProfileModal";
 
 export default function FriendsPanel() {
   const supabase = createSupabaseBrowserClient();
@@ -15,6 +16,17 @@ export default function FriendsPanel() {
   const [usernameInput, setUsernameInput] = useState("");
   const [searching, setSearching] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
+  const [editingOwnProfile, setEditingOwnProfile] = useState(false);
+
+  const getStatusColor = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "bg-green-500";
+      case "idle": return "bg-yellow-500";
+      case "dnd": return "bg-red-500";
+      case "invisible": return "bg-gray-500";
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -187,19 +199,45 @@ export default function FriendsPanel() {
         )}
         <div className="mt-2 flex-1">
           <div className="px-2 text-xs font-semibold text-gray-500">All Friends</div>
-          {friends.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => openDM(f.id)}
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
-            >
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold">
-                {f.username.slice(0, 1).toUpperCase()}
-              </div>
-              <span className="truncate">{f.username}</span>
-            </button>
-          ))}
+          {friends.map((f) => {
+            const isCurrentUser = f.id === userId;
+            return (
+            <div key={f.id} className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">
+              <button
+                onClick={() => setProfileModalUserId(f.id)}
+                className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold hover:opacity-80"
+              >
+                {f.avatar_url ? (
+                  <img src={f.avatar_url} alt={f.username} className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  f.username.slice(0, 1).toUpperCase()
+                )}
+                <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#2b2d31] ${getStatusColor(f.status)}`} />
+              </button>
+              <button
+                onClick={() => openDM(f.id)}
+                className="min-w-0 flex-1 text-left"
+              >
+                <div className="truncate text-sm font-medium text-gray-200 hover:underline">{f.username}</div>
+                {f.custom_status && (
+                  <div className="truncate text-xs text-gray-500">{f.custom_status}</div>
+                )}
+              </button>
+              {isCurrentUser && (
+                <button
+                  onClick={() => setEditingOwnProfile(true)}
+                  className="opacity-0 group-hover:opacity-100 rounded p-1 hover:bg-white/10"
+                  title="Edit Profile"
+                >
+                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          );
+          })}
         </div>
         <div className="mt-auto border-t border-[#1e1f22] p-2">
           <button
@@ -237,6 +275,18 @@ export default function FriendsPanel() {
             </form>
           </div>
         </div>
+      )}
+      {profileModalUserId && (
+        <UserProfileModal
+          userId={profileModalUserId}
+          onClose={() => setProfileModalUserId(null)}
+        />
+      )}
+      {editingOwnProfile && userId && (
+        <UserProfileModal
+          userId={userId}
+          onClose={() => setEditingOwnProfile(false)}
+        />
       )}
     </div>
   );
