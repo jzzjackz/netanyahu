@@ -26,7 +26,7 @@ export default function RegisterPage() {
     }
     if (data.user) {
       await supabase.from("profiles").upsert(
-        { id: data.user.id, username },
+        { id: data.user.id, username, status: 'online' },
         { onConflict: "id" }
       );
     }

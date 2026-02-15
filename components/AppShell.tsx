@@ -33,9 +33,18 @@ export default function AppShell() {
     }
   }, [currentConversationId, notification]);
 
-  // Get current user ID
+  // Get current user ID and set status to online
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setUserId(user?.id ?? null);
+      if (user) {
+        // Set status to online when user logs in
+        await supabase
+          .from("profiles")
+          .update({ status: 'online' })
+          .eq("id", user.id);
+      }
+    });
   }, [supabase.auth]);
 
   // Request notification permission on mount
