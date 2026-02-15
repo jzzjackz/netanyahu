@@ -43,7 +43,7 @@ export default function FriendsPanel() {
       const rawIn = (reqs ?? []) as FriendRequest[];
       const fromIds = [...new Set(rawIn.map((r) => r.from_user_id))];
       const fromProfiles = fromIds.length
-        ? (await supabase.from("profiles").select("*").in("id", fromIds)).data as Profile[] ?? []
+        ? (await supabase.from("profiles").select("id, username, avatar_url, banner_url, bio, status, custom_status, last_seen, created_at").in("id", fromIds)).data as Profile[] ?? []
         : [];
       const incoming = rawIn.map((r) => ({
         ...r,
@@ -63,7 +63,7 @@ export default function FriendsPanel() {
         setFriends([]);
         return;
       }
-      const { data: profs } = await supabase.from("profiles").select("*").in("id", ids);
+      const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, banner_url, bio, status, custom_status, last_seen, created_at").in("id", ids);
       setFriends((profs as Profile[]) ?? []);
     };
     load();
@@ -135,7 +135,7 @@ export default function FriendsPanel() {
       .eq("to_user_id", userId!)
       .eq("status", "pending");
     setPendingIn((prev) => prev.filter((r) => r.from_user_id !== fromUserId));
-    const { data: p } = await supabase.from("profiles").select("*").eq("id", fromUserId).single();
+    const { data: p } = await supabase.from("profiles").select("id, username, avatar_url, banner_url, bio, status, custom_status, last_seen, created_at").eq("id", fromUserId).single();
     if (p) setFriends((prev) => [...prev, p as Profile]);
   };
 

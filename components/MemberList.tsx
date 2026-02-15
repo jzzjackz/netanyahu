@@ -69,7 +69,7 @@ export default function MemberList() {
       setIsOwner(serverData?.owner_id === userId);
       
       const ids = membersList.map((m) => m.user_id);
-      const { data: profs } = await supabase.from("profiles").select("*").in("id", ids);
+      const { data: profs } = await supabase.from("profiles").select("id, username, avatar_url, banner_url, bio, status, custom_status, last_seen, created_at").in("id", ids);
       const profileMap = new Map<string, Profile>(((profs ?? []) as Profile[]).map((p) => [p.id, p]));
       setMembers(membersList.map((m) => ({ ...m, profiles: profileMap.get(m.user_id) ?? null })));
       setLoading(false);
@@ -91,7 +91,7 @@ export default function MemberList() {
             const newMember = payload.new as ServerMember;
             const { data: profile } = await supabase
               .from("profiles")
-              .select("*")
+              .select("id, username, avatar_url, banner_url, bio, status, custom_status, last_seen, created_at")
               .eq("id", newMember.user_id)
               .single();
             setMembers((prev) => [...prev, { ...newMember, profiles: profile as Profile }]);
