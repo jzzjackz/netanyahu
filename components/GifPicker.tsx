@@ -25,8 +25,9 @@ const NSFW_GIFS = [
   "e7392d2809cd5c9272c9e08a0a3bb17a-1768849930034-291004006.gif"
 ];
 
-// GIPHY API - Free tier: 100 searches/hour
-const GIPHY_API_KEY = "your_giphy_api_key_here"; // Get free key at https://developers.giphy.com/
+// GIPHY API - Using public demo key (limited rate)
+// For production, get your own key at https://developers.giphy.com/
+const GIPHY_API_KEY = "sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh"; // Public demo key
 
 export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [gifs, setGifs] = useState<GifResult[]>([]);
