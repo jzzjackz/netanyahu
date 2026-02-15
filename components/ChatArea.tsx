@@ -29,6 +29,8 @@ export default function ChatArea() {
   const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string>("");
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -198,6 +200,37 @@ export default function ChatArea() {
     setMessages((prev) => prev.filter((m) => m.id !== messageId));
   };
 
+  const handleEdit = (message: Message) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content);
+  };
+
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editContent.trim()) return;
+    
+    await supabase
+      .from("messages")
+      .update({ 
+        content: editContent.trim(),
+        edited_at: new Date().toISOString()
+      })
+      .eq("id", messageId);
+    
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, content: editContent.trim(), edited_at: new Date().toISOString() } : m
+      )
+    );
+    
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
   const handleTyping = async () => {
     if (!currentChannelId || !userId) return;
     
@@ -338,25 +371,50 @@ export default function ChatArea() {
                   <p className="text-gray-500 line-clamp-1">{m.reply_message.content}</p>
                 </div>
               )}
-              {(() => {
-                // Check if message is just a GIF URL
-                const gifMatch = m.content.match(/^(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)$/i);
-                const isOnlyGif = gifMatch && gifMatch[0] === m.content.trim();
-                
-                // If it's only a GIF, don't show the text
-                if (isOnlyGif) return null;
-                
-                return (
-                  <div className="prose prose-invert max-w-none break-words text-gray-200">
-                    <div dangerouslySetInnerHTML={{
-                      __html: m.content.replace(/@(\w+)/g, (match, username) => {
-                        const isSelf = username === currentUsername;
-                        return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
-                      })
-                    }} />
+              {editingMessageId === m.id ? (
+                <div className="mt-2">
+                  <input
+                    type="text"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveEdit(m.id);
+                      if (e.key === "Escape") handleCancelEdit();
+                    }}
+                    className="w-full rounded bg-[#404249] px-3 py-2 text-sm text-white outline-none"
+                    autoFocus
+                  />
+                  <div className="mt-1 flex gap-2 text-xs text-gray-400">
+                    <span>escape to <button onClick={handleCancelEdit} className="text-indigo-400 hover:underline">cancel</button></span>
+                    <span>• enter to <button onClick={() => handleSaveEdit(m.id)} className="text-indigo-400 hover:underline">save</button></span>
                   </div>
-                );
-              })()}
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    // Check if message is just a GIF URL
+                    const gifMatch = m.content.match(/^(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)$/i);
+                    const isOnlyGif = gifMatch && gifMatch[0] === m.content.trim();
+                    
+                    // If it's only a GIF, don't show the text
+                    if (isOnlyGif) return null;
+                    
+                    return (
+                      <div className="prose prose-invert max-w-none break-words text-gray-200">
+                        <div dangerouslySetInnerHTML={{
+                          __html: m.content.replace(/@(\w+)/g, (match, username) => {
+                            const isSelf = username === currentUsername;
+                            return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
+                          })
+                        }} />
+                        {m.edited_at && (
+                          <span className="ml-1 text-xs text-gray-500">(edited)</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
               {m.attachments && m.attachments.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {m.attachments.map((att, idx) => {
@@ -390,22 +448,32 @@ export default function ChatArea() {
                 </div>
               )}
               <MessageEmbeds content={m.content} />
-              <div className="mt-1 hidden gap-2 group-hover:flex">
-                <button
-                  onClick={() => setReplyingTo(m)}
-                  className="rounded bg-[#404249] px-2 py-1 text-xs hover:bg-[#4f5058]"
-                >
-                  Reply
-                </button>
-                {m.author_id === userId && (
+              {editingMessageId !== m.id && (
+                <div className="mt-1 hidden gap-2 group-hover:flex">
                   <button
-                    onClick={() => handleDelete(m.id)}
-                    className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
+                    onClick={() => setReplyingTo(m)}
+                    className="rounded bg-[#404249] px-2 py-1 text-xs hover:bg-[#4f5058]"
                   >
-                    Delete
+                    Reply
                   </button>
-                )}
-              </div>
+                  {m.author_id === userId && (
+                    <>
+                      <button
+                        onClick={() => handleEdit(m)}
+                        className="rounded bg-[#404249] px-2 py-1 text-xs hover:bg-[#4f5058]"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(m.id)}
+                        className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -541,6 +609,8 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string>("");
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -664,6 +734,37 @@ function DMArea({ conversationId }: { conversationId: string }) {
     setSending(false);
   };
 
+  const handleEdit = (message: import("../lib/types").DirectMessage) => {
+    setEditingMessageId(message.id);
+    setEditContent(message.content || "");
+  };
+
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editContent.trim()) return;
+    
+    await supabase
+      .from("direct_messages")
+      .update({ 
+        content: editContent.trim(),
+        edited_at: new Date().toISOString()
+      })
+      .eq("id", messageId);
+    
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId ? { ...m, content: editContent.trim(), edited_at: new Date().toISOString() } : m
+      )
+    );
+    
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent("");
+  };
+
   const handleStartCall = async () => {
     if (!userId || !otherUser) return;
     
@@ -721,7 +822,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
           {messages.map((m) => {
             const mentionedSelf = m.content && m.content.includes(`@${currentUsername}`);
             return (
-            <div key={m.id} className={`flex gap-3 py-1 ${mentionedSelf ? 'bg-yellow-500/10 border-l-2 border-yellow-500 pl-2' : ''}`}>
+            <div key={m.id} className={`group flex gap-3 py-1 ${mentionedSelf ? 'bg-yellow-500/10 border-l-2 border-yellow-500 pl-2' : ''}`}>
               <button
                 onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
                 className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold hover:opacity-80"
@@ -740,23 +841,48 @@ function DMArea({ conversationId }: { conversationId: string }) {
                   {m.profiles?.username ?? "Unknown"}
                 </button>
                 <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
-                {(() => {
-                  // Check if message is just a GIF URL
-                  const gifMatch = m.content?.match(/^(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)$/i);
-                  const isOnlyGif = m.content && gifMatch && gifMatch[0] === m.content.trim();
-                  
-                  // If it's only a GIF, don't show the text
-                  if (isOnlyGif || !m.content) return null;
-                  
-                  return (
-                    <div dangerouslySetInnerHTML={{
-                      __html: m.content.replace(/@(\w+)/g, (match, username) => {
-                        const isSelf = username === currentUsername;
-                        return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
-                      })
-                    }} className="text-gray-200" />
-                  );
-                })()}
+                {editingMessageId === m.id ? (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveEdit(m.id);
+                        if (e.key === "Escape") handleCancelEdit();
+                      }}
+                      className="w-full rounded bg-[#404249] px-3 py-2 text-sm text-white outline-none"
+                      autoFocus
+                    />
+                    <div className="mt-1 flex gap-2 text-xs text-gray-400">
+                      <span>escape to <button onClick={handleCancelEdit} className="text-indigo-400 hover:underline">cancel</button></span>
+                      <span>• enter to <button onClick={() => handleSaveEdit(m.id)} className="text-indigo-400 hover:underline">save</button></span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {(() => {
+                      // Check if message is just a GIF URL
+                      const gifMatch = m.content?.match(/^(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)$/i);
+                      const isOnlyGif = m.content && gifMatch && gifMatch[0] === m.content.trim();
+                      
+                      // If it's only a GIF, don't show the text
+                      if (isOnlyGif || !m.content) return null;
+                      
+                      return (
+                        <div dangerouslySetInnerHTML={{
+                          __html: m.content.replace(/@(\w+)/g, (match, username) => {
+                            const isSelf = username === currentUsername;
+                            return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
+                          })
+                        }} className="text-gray-200" />
+                      );
+                    })()}
+                    {m.edited_at && (
+                      <span className="ml-1 text-xs text-gray-500">(edited)</span>
+                    )}
+                  </>
+                )}
                 {m.attachments && m.attachments.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {m.attachments.map((att: { url: string; name: string; type: string }, idx: number) => {
@@ -787,6 +913,30 @@ function DMArea({ conversationId }: { conversationId: string }) {
                         </a>
                       );
                     })}
+                  </div>
+                )}
+                {editingMessageId !== m.id && (
+                  <div className="mt-1 hidden gap-2 group-hover:flex">
+                    {m.author_id === userId && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(m)}
+                          className="rounded bg-[#404249] px-2 py-1 text-xs hover:bg-[#4f5058]"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!confirm("Delete this message?")) return;
+                            await supabase.from("direct_messages").delete().eq("id", m.id);
+                            setMessages((prev) => prev.filter((msg) => msg.id !== m.id));
+                          }}
+                          className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
