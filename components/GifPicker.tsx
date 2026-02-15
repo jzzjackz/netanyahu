@@ -76,8 +76,8 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
       const pos = (pageNum - 1) * limit;
       
       const endpoint = searchQuery 
-        ? `https://api.klipy.com/v1/gifs/search?q=${encodeURIComponent(searchQuery)}&key=${KLIPY_API_KEY}&limit=${limit}&pos=${pos}`
-        : `https://api.klipy.com/v1/gifs/trending?key=${KLIPY_API_KEY}&limit=${limit}&pos=${pos}`;
+        ? `https://api.klipy.com/api/v1/${KLIPY_API_KEY}/gifs/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}&pos=${pos}`
+        : `https://api.klipy.com/api/v1/${KLIPY_API_KEY}/gifs/featured?limit=${limit}&pos=${pos}`;
 
       console.log("Fetching from Klipy:", endpoint);
 
