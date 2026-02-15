@@ -25,7 +25,6 @@ const NSFW_GIFS = [
   "e7392d2809cd5c9272c9e08a0a3bb17a-1768849930034-291004006.gif"
 ];
 
-// Test API key - replace with your own from https://klipy.com/docs
 const KLIPY_API_KEY = "ffoihGloo4WOyH7lwgboZsWXnaKQopcgv2kP5F8TtuEc7oVd9FthOwcikfkvzBd1";
 
 export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
@@ -73,32 +72,40 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
   const loadKlipyGifs = async (searchQuery: string, pageNum: number) => {
     try {
+      const limit = 20;
+      const pos = (pageNum - 1) * limit;
+      
       const endpoint = searchQuery 
-        ? `https://api.klipy.com/v1/gifs/search?q=${encodeURIComponent(searchQuery)}&limit=20&pos=${(pageNum - 1) * 20}`
-        : `https://api.klipy.com/v1/gifs/trending?limit=20&pos=${(pageNum - 1) * 20}`;
+        ? `https://api.klipy.com/v1/gifs/search?q=${encodeURIComponent(searchQuery)}&key=${KLIPY_API_KEY}&limit=${limit}&pos=${pos}`
+        : `https://api.klipy.com/v1/gifs/trending?key=${KLIPY_API_KEY}&limit=${limit}&pos=${pos}`;
 
-      const response = await fetch(endpoint, {
-        headers: {
-          "api_key": KLIPY_API_KEY,
-        },
-      });
+      console.log("Fetching from Klipy:", endpoint);
+
+      const response = await fetch(endpoint);
+
+      console.log("Klipy response status:", response.status);
 
       if (!response.ok) {
-        throw new Error("Klipy API error");
+        const errorText = await response.text();
+        console.error("Klipy API error:", response.status, errorText);
+        throw new Error(`Klipy API error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log("Klipy data:", data);
 
       const results = (data.results || []).map((gif: any) => ({
         id: gif.id,
         filename: gif.id,
         title: gif.content_description || gif.title || "GIF",
         url: gif.media_formats?.gif?.url || gif.media_formats?.tinygif?.url || "",
-        preview: gif.media_formats?.tinygif?.url || gif.media_formats?.gif?.url || "",
+        preview: gif.media_formats?.tinygif?.url || gif.media_formats?.nanogif?.url || gif.media_formats?.gif?.url || "",
         size: 0,
         uploadDate: gif.created || new Date().toISOString(),
         source: "klipy" as const,
       })).filter((gif: GifResult) => gif.url);
+
+      console.log("Klipy processed results:", results.length);
 
       return {
         results,
