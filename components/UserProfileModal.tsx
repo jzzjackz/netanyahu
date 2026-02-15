@@ -1,0 +1,297 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { createSupabaseBrowserClient } from "../lib/supabaseClient";
+import type { Profile, UserStatus } from "../lib/types";
+
+interface UserProfileModalProps {
+  userId: string;
+  onClose: () => void;
+}
+
+export default function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
+  const supabase = createSupabaseBrowserClient();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [bio, setBio] = useState("");
+  const [customStatus, setCustomStatus] = useState("");
+  const [status, setStatus] = useState<UserStatus>("online");
+  const [uploading, setUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id ?? null);
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (data) {
+        const prof = data as Profile;
+        setProfile(prof);
+        setBio(prof.bio || "");
+        setCustomStatus(prof.custom_status || "");
+        setStatus(prof.status);
+      }
+    };
+    load();
+  }, [userId, supabase]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUserId) return;
+
+    setUploading(true);
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from("avatars")
+      .upload(fileName, file);
+
+    if (!error && data) {
+      const { data: { publicUrl } } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(data.path);
+
+      await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", currentUserId);
+
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
+    }
+    setUploading(false);
+  };
+
+  const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUserId) return;
+
+    setUploading(true);
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${currentUserId}/${Date.now()}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from("banners")
+      .upload(fileName, file);
+
+    if (!error && data) {
+      const { data: { publicUrl } } = supabase.storage
+        .from("banners")
+        .getPublicUrl(data.path);
+
+      await supabase
+        .from("profiles")
+        .update({ banner_url: publicUrl })
+        .eq("id", currentUserId);
+
+      setProfile(prev => prev ? { ...prev, banner_url: publicUrl } : null);
+    }
+    setUploading(false);
+  };
+
+  const handleSave = async () => {
+    if (!currentUserId) return;
+
+    await supabase
+      .from("profiles")
+      .update({
+        bio,
+        custom_status: customStatus,
+        status,
+      })
+      .eq("id", currentUserId);
+
+    setProfile(prev => prev ? { ...prev, bio, custom_status: customStatus, status } : null);
+    setIsEditing(false);
+  };
+
+  const getStatusColor = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "bg-green-500";
+      case "idle": return "bg-yellow-500";
+      case "dnd": return "bg-red-500";
+      case "invisible": return "bg-gray-500";
+    }
+  };
+
+  const getStatusLabel = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "Online";
+      case "idle": return "Idle";
+      case "dnd": return "Do Not Disturb";
+      case "invisible": return "Invisible";
+    }
+  };
+
+  if (!profile) return null;
+
+  const isOwnProfile = currentUserId === userId;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="w-full max-w-2xl rounded-lg bg-[#313338] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Banner */}
+        <div className="relative h-32 overflow-hidden rounded-t-lg bg-gradient-to-r from-indigo-500 to-purple-600">
+          {profile.banner_url && (
+            <img src={profile.banner_url} alt="Banner" className="h-full w-full object-cover" />
+          )}
+          {isOwnProfile && isEditing && (
+            <>
+              <input
+                ref={bannerInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleBannerUpload}
+                className="hidden"
+              />
+              <button
+                onClick={() => bannerInputRef.current?.click()}
+                className="absolute right-4 top-4 rounded bg-black/50 px-3 py-1 text-sm hover:bg-black/70"
+                disabled={uploading}
+              >
+                {uploading ? "Uploading..." : "Change Banner"}
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Avatar */}
+        <div className="relative px-6">
+          <div className="relative -mt-16 inline-block">
+            <div className="h-32 w-32 overflow-hidden rounded-full border-8 border-[#313338] bg-[#5865f2]">
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt={profile.username} className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-4xl font-bold">
+                  {profile.username.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className={`absolute bottom-2 right-2 h-6 w-6 rounded-full border-4 border-[#313338] ${getStatusColor(profile.status)}`} />
+            {isOwnProfile && isEditing && (
+              <>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 hover:opacity-100"
+                  disabled={uploading}
+                >
+                  <span className="text-sm">Change</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 pt-4">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">{profile.username}</h2>
+              {profile.custom_status && (
+                <p className="text-sm text-gray-400">{profile.custom_status}</p>
+              )}
+            </div>
+            {isOwnProfile && (
+              <button
+                onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+                className="rounded bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-600"
+              >
+                {isEditing ? "Save Profile" : "Edit Profile"}
+              </button>
+            )}
+          </div>
+
+          {isEditing ? (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as UserStatus)}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 outline-none"
+                >
+                  <option value="online">🟢 Online</option>
+                  <option value="idle">🟡 Idle</option>
+                  <option value="dnd">🔴 Do Not Disturb</option>
+                  <option value="invisible">⚫ Invisible</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Custom Status</label>
+                <input
+                  type="text"
+                  value={customStatus}
+                  onChange={(e) => setCustomStatus(e.target.value)}
+                  placeholder="What's on your mind?"
+                  maxLength={128}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Bio</label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  placeholder="Tell us about yourself..."
+                  maxLength={190}
+                  rows={4}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">{bio.length}/190</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <h3 className="mb-2 text-sm font-semibold uppercase text-gray-400">Status</h3>
+                <div className="flex items-center gap-2">
+                  <div className={`h-3 w-3 rounded-full ${getStatusColor(profile.status)}`} />
+                  <span>{getStatusLabel(profile.status)}</span>
+                </div>
+              </div>
+
+              {profile.bio && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold uppercase text-gray-400">About Me</h3>
+                  <p className="text-gray-300">{profile.bio}</p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold uppercase text-gray-400">Member Since</h3>
+                <p className="text-gray-300">{new Date(profile.created_at).toLocaleDateString()}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full bg-black/50 p-2 hover:bg-black/70"
+        >
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}

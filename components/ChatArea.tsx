@@ -9,6 +9,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import MessageEmbeds from "./MessageEmbeds";
 import PrivateCall from "./PrivateCall";
+import UserProfileModal from "./UserProfileModal";
+import { createMentions, createDMMentions } from "../lib/mentions";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();

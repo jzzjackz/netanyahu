@@ -1,12 +1,35 @@
 export type ServerRole = "owner" | "admin" | "mod" | "member";
 export type ChannelType = "text" | "voice";
 export type FriendRequestStatus = "pending" | "accepted" | "rejected";
+export type UserStatus = "online" | "idle" | "dnd" | "invisible";
 
 export interface Profile {
   id: string;
   username: string;
   avatar_url: string | null;
-  status: string;
+  banner_url: string | null;
+  bio: string | null;
+  status: UserStatus;
+  custom_status: string | null;
+  last_seen: string;
+  created_at: string;
+}
+
+export interface Mention {
+  id: string;
+  message_id: string;
+  mentioned_user_id: string;
+  channel_id: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface DMMention {
+  id: string;
+  message_id: string;
+  mentioned_user_id: string;
+  conversation_id: string;
+  is_read: boolean;
   created_at: string;
 }
 
