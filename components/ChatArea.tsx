@@ -10,6 +10,7 @@ import remarkGfm from "remark-gfm";
 import MessageEmbeds from "./MessageEmbeds";
 import PrivateCall from "./PrivateCall";
 import UserProfileModal from "./UserProfileModal";
+import GifPicker from "./GifPicker";
 import { createMentions, createDMMentions } from "../lib/mentions";
 
 export default function ChatArea() {
@@ -27,6 +28,7 @@ export default function ChatArea() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string>("");
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -462,6 +464,14 @@ export default function ChatArea() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </button>
+          <button
+            type="button"
+            onClick={() => setShowGifPicker(true)}
+            className="text-gray-400 hover:text-gray-200"
+            title="Send GIF"
+          >
+            <span className="text-lg">GIF</span>
+          </button>
           <input
             type="text"
             value={content}
@@ -484,6 +494,24 @@ export default function ChatArea() {
           onClose={() => setProfileModalUserId(null)}
         />
       )}
+      {showGifPicker && (
+        <GifPicker
+          onSelect={async (gifUrl) => {
+            setShowGifPicker(false);
+            if (!currentChannelId || sending) return;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            setSending(true);
+            await supabase.from("messages").insert({
+              channel_id: currentChannelId,
+              author_id: user.id,
+              content: gifUrl,
+            });
+            setSending(false);
+          }}
+          onClose={() => setShowGifPicker(false)}
+        />
+      )}
     </div>
   );
 }
@@ -501,6 +529,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string>("");
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -785,6 +814,14 @@ function DMArea({ conversationId }: { conversationId: string }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
             </button>
+            <button
+              type="button"
+              onClick={() => setShowGifPicker(true)}
+              className="text-gray-400 hover:text-gray-200"
+              title="Send GIF"
+            >
+              <span className="text-lg">GIF</span>
+            </button>
             <input
               type="text"
               value={content}
@@ -806,6 +843,24 @@ function DMArea({ conversationId }: { conversationId: string }) {
         <UserProfileModal
           userId={profileModalUserId}
           onClose={() => setProfileModalUserId(null)}
+        />
+      )}
+      {showGifPicker && (
+        <GifPicker
+          onSelect={async (gifUrl) => {
+            setShowGifPicker(false);
+            if (sending) return;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            setSending(true);
+            await supabase.from("direct_messages").insert({
+              conversation_id: conversationId,
+              author_id: user.id,
+              content: gifUrl,
+            });
+            setSending(false);
+          }}
+          onClose={() => setShowGifPicker(false)}
         />
       )}
     </>
