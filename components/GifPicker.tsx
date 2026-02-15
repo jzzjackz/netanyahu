@@ -10,7 +10,7 @@ interface GifResult {
   preview: string;
   size: number;
   uploadDate: string;
-  source: "custom" | "klipy";
+  source: "custom" | "giphy";
 }
 
 interface GifPickerProps {
@@ -25,7 +25,8 @@ const NSFW_GIFS = [
   "e7392d2809cd5c9272c9e08a0a3bb17a-1768849930034-291004006.gif"
 ];
 
-const KLIPY_API_KEY = "ffoihGloo4WOyH7lwgboZsWXnaKQopcgv2kP5F8TtuEc7oVd9FthOwcikfkvzBd1";
+// GIPHY API - Free tier: 100 searches/hour
+const GIPHY_API_KEY = "your_giphy_api_key_here"; // Get free key at https://developers.giphy.com/
 
 export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [gifs, setGifs] = useState<GifResult[]>([]);
@@ -34,7 +35,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showNsfw, setShowNsfw] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<"all" | "custom" | "klipy">("all");
+  const [selectedSource, setSelectedSource] = useState<"all" | "custom" | "giphy">("all");
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadCustomGifs = async (searchQuery: string, pageNum: number) => {
@@ -70,49 +71,49 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
     }
   };
 
-  const loadKlipyGifs = async (searchQuery: string, pageNum: number) => {
+  const loadGiphyGifs = async (searchQuery: string, pageNum: number) => {
     try {
       const limit = 20;
-      const pos = (pageNum - 1) * limit;
+      const offset = (pageNum - 1) * limit;
       
       const endpoint = searchQuery 
-        ? `https://api.klipy.com/api/v1/${KLIPY_API_KEY}/gifs/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}&pos=${pos}`
-        : `https://api.klipy.com/api/v1/${KLIPY_API_KEY}/gifs/featured?limit=${limit}&pos=${pos}`;
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}&rating=${showNsfw ? 'r' : 'pg-13'}`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&offset=${offset}&rating=${showNsfw ? 'r' : 'pg-13'}`;
 
-      console.log("Fetching from Klipy:", endpoint);
+      console.log("Fetching from GIPHY:", endpoint);
 
       const response = await fetch(endpoint);
 
-      console.log("Klipy response status:", response.status);
+      console.log("GIPHY response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Klipy API error:", response.status, errorText);
-        throw new Error(`Klipy API error: ${response.status}`);
+        console.error("GIPHY API error:", response.status, errorText);
+        throw new Error(`GIPHY API error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log("Klipy data:", data);
+      console.log("GIPHY data:", data);
 
-      const results = (data.results || []).map((gif: any) => ({
+      const results = (data.data || []).map((gif: any) => ({
         id: gif.id,
         filename: gif.id,
-        title: gif.content_description || gif.title || "GIF",
-        url: gif.media_formats?.gif?.url || gif.media_formats?.tinygif?.url || "",
-        preview: gif.media_formats?.tinygif?.url || gif.media_formats?.nanogif?.url || gif.media_formats?.gif?.url || "",
+        title: gif.title || "GIF",
+        url: gif.images?.original?.url || gif.images?.downsized?.url || "",
+        preview: gif.images?.fixed_width_small?.url || gif.images?.downsized_small?.url || gif.images?.original?.url || "",
         size: 0,
-        uploadDate: gif.created || new Date().toISOString(),
-        source: "klipy" as const,
+        uploadDate: gif.import_datetime || new Date().toISOString(),
+        source: "giphy" as const,
       })).filter((gif: GifResult) => gif.url);
 
-      console.log("Klipy processed results:", results.length);
+      console.log("GIPHY processed results:", results.length);
 
       return {
         results,
-        hasMore: data.next && data.next !== "",
+        hasMore: data.pagination && data.pagination.total_count > (offset + limit),
       };
     } catch (error) {
-      console.error("Failed to load Klipy GIFs:", error);
+      console.error("Failed to load GIPHY GIFs:", error);
       return { results: [], hasMore: false };
     }
   };
@@ -129,10 +130,10 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
         hasMoreResults = hasMoreResults || customData.hasMore;
       }
 
-      if (selectedSource === "all" || selectedSource === "klipy") {
-        const klipyData = await loadKlipyGifs(searchQuery, pageNum);
-        allResults = [...allResults, ...klipyData.results];
-        hasMoreResults = hasMoreResults || klipyData.hasMore;
+      if (selectedSource === "all" || selectedSource === "giphy") {
+        const giphyData = await loadGiphyGifs(searchQuery, pageNum);
+        allResults = [...allResults, ...giphyData.results];
+        hasMoreResults = hasMoreResults || giphyData.hasMore;
       }
 
       if (append) {
@@ -222,14 +223,14 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
               Custom
             </button>
             <button
-              onClick={() => setSelectedSource("klipy")}
+              onClick={() => setSelectedSource("giphy")}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                selectedSource === "klipy"
+                selectedSource === "giphy"
                   ? "bg-indigo-500 text-white"
                   : "bg-[#404249] text-gray-300 hover:bg-[#4f5058]"
               }`}
             >
-              Klipy
+              GIPHY
             </button>
           </div>
           
