@@ -28,6 +28,15 @@ export default function MemberList() {
     }
   };
 
+  const getStatusTextColor = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "text-green-400";
+      case "idle": return "text-yellow-400";
+      case "dnd": return "text-red-400";
+      case "invisible": return "text-gray-400";
+    }
+  };
+
   const getStatusLabel = (status: UserStatus) => {
     switch (status) {
       case "online": return "Online";
@@ -184,12 +193,12 @@ export default function MemberList() {
                 </button>
                 {m.role === "owner" && <span className="text-xs">👑</span>}
               </div>
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <span>{getStatusLabel(m.profiles?.status || 'online')}</span>
+              <div className="flex items-center gap-1 text-xs">
+                <span className={getStatusTextColor(m.profiles?.status || 'online')}>{getStatusLabel(m.profiles?.status || 'online')}</span>
                 {m.profiles?.custom_status && (
                   <>
-                    <span>•</span>
-                    <span className="truncate">{m.profiles.custom_status}</span>
+                    <span className="text-gray-500">•</span>
+                    <span className="truncate text-gray-400">{m.profiles.custom_status}</span>
                   </>
                 )}
               </div>

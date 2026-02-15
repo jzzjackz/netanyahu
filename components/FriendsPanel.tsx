@@ -28,6 +28,15 @@ export default function FriendsPanel() {
     }
   };
 
+  const getStatusTextColor = (status: UserStatus) => {
+    switch (status) {
+      case "online": return "text-green-400";
+      case "idle": return "text-yellow-400";
+      case "dnd": return "text-red-400";
+      case "invisible": return "text-gray-400";
+    }
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
   }, [supabase.auth]);
