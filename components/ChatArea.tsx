@@ -297,18 +297,17 @@ export default function ChatArea() {
 
   return (
     <div className="flex flex-1 flex-col bg-[#313338]">
-      <div className="flex h-12 items-center border-b border-[#1e1f22] px-4">
-        <span className="text-gray-500">#</span>
-        <h2 className="ml-1 font-semibold">{channel?.name ?? "Channel"}</h2>
+      <div className="flex h-12 items-center border-b border-[#1e1f22] px-4 shadow-sm">
+        <span className="text-xl text-gray-400">#</span>
+        <h2 className="ml-2 font-semibold text-white">{channel?.name ?? "Channel"}</h2>
       </div>
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
-        {messages.length === 0 && (
-          <p className="text-gray-500">No messages yet. Send the first one!</p>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">{messages.length === 0 && (
+          <p className="px-4 pt-4 text-gray-500">No messages yet. Send the first one!</p>
         )}
         {messages.map((m) => {
           const mentionedSelf = m.content.includes(`@${currentUsername}`);
           return (
-          <div key={m.id} className={`group flex gap-3 py-1 hover:bg-white/5 ${mentionedSelf ? 'bg-yellow-500/10 border-l-2 border-yellow-500 pl-2' : ''}`}>
+          <div key={m.id} className={`group flex gap-3 px-4 py-2 hover:bg-[#2e3035] ${mentionedSelf ? 'bg-[#faa81a]/10 border-l-4 border-[#faa81a]' : ''}`}>
             <button
               onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
               className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold hover:opacity-80"
