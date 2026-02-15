@@ -85,7 +85,7 @@ export default function MemberList() {
     })();
 
     // Subscribe to realtime changes
-    const channel = supabase
+    const memberChannel = supabase
       .channel(`server_members:${currentServerId}`)
       .on(
         "postgres_changes",
@@ -112,8 +112,32 @@ export default function MemberList() {
       )
       .subscribe();
 
+    // Subscribe to profile changes to update status in real-time
+    const profileChannel = supabase
+      .channel(`profiles:${currentServerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+        },
+        async (payload) => {
+          const updatedProfile = payload.new as Profile;
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.user_id === updatedProfile.id
+                ? { ...m, profiles: updatedProfile }
+                : m
+            )
+          );
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(memberChannel);
+      supabase.removeChannel(profileChannel);
     };
   }, [currentServerId, userId, supabase]);
 
@@ -193,12 +217,12 @@ export default function MemberList() {
                 </button>
                 {m.role === "owner" && <span className="text-xs">👑</span>}
               </div>
-              <div className="flex items-center gap-1 text-xs">
-                <span className={getStatusTextColor(m.profiles?.status || 'online')}>{getStatusLabel(m.profiles?.status || 'online')}</span>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <span>{getStatusLabel(m.profiles?.status || 'online')}</span>
                 {m.profiles?.custom_status && (
                   <>
-                    <span className="text-gray-500">•</span>
-                    <span className="truncate text-gray-400">{m.profiles.custom_status}</span>
+                    <span>•</span>
+                    <span className="truncate">{m.profiles.custom_status}</span>
                   </>
                 )}
               </div>
