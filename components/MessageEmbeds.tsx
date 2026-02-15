@@ -12,8 +12,16 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
   const supabase = createSupabaseBrowserClient();
   const [inviteData, setInviteData] = useState<any>(null);
   const [linkPreview, setLinkPreview] = useState<any>(null);
+  const [gifUrl, setGifUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    // Check for GIF URLs (GIPHY, Tenor, custom API, or any .gif)
+    const gifMatch = content.match(/(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)/i);
+    if (gifMatch) {
+      setGifUrl(gifMatch[1]);
+      return; // Don't process other embeds if it's a GIF
+    }
+
     // Check for invite links
     const inviteMatch = content.match(/\/invite\/([a-z0-9]+)/i);
     if (inviteMatch) {
@@ -39,7 +47,17 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
 
   return (
     <>
-      {inviteData && (
+      {gifUrl && (
+        <div className="mt-2">
+          <img
+            src={gifUrl}
+            alt="GIF"
+            className="max-h-80 max-w-md rounded border border-[#404249] object-contain"
+            loading="lazy"
+          />
+        </div>
+      )}
+      {inviteData && !gifUrl && (
         <Link
           href={`/invite/${inviteData.code}`}
           className="mt-2 block max-w-md rounded-lg border border-[#404249] bg-[#2b2d31] p-4 hover:bg-[#313338]"
@@ -55,7 +73,7 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
           </div>
         </Link>
       )}
-      {linkPreview && !inviteData && (
+      {linkPreview && !inviteData && !gifUrl && (
         <a
           href={linkPreview.url}
           target="_blank"
