@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 
 interface GifResult {
   id: string;
@@ -36,8 +37,11 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showNsfw, setShowNsfw] = useState(false);
-  const [selectedSource, setSelectedSource] = useState<"all" | "custom" | "giphy">("all");
+  const [selectedSource, setSelectedSource] = useState<"all" | "custom" | "giphy" | "favorites">("all");
+  const [favorites, setFavorites] = useState<GifResult[]>([]);
+  const [favoriteUrls, setFavoriteUrls] = useState<Set<string>>(new Set());
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const supabase = createSupabaseBrowserClient();
 
   const loadCustomGifs = async (searchQuery: string, pageNum: number) => {
     try {
@@ -119,7 +123,73 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
     }
   };
 
+  const loadFavorites = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("favorite_gifs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      const favGifs = data.map((fav: any) => ({
+        id: fav.id,
+        filename: fav.id,
+        title: fav.gif_title || "GIF",
+        url: fav.gif_url,
+        preview: fav.gif_preview_url || fav.gif_url,
+        size: 0,
+        uploadDate: fav.created_at,
+        source: "custom" as const,
+      }));
+      setFavorites(favGifs);
+      setFavoriteUrls(new Set(data.map((fav: any) => fav.gif_url)));
+    }
+  };
+
+  const toggleFavorite = async (gif: GifResult) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    if (favoriteUrls.has(gif.url)) {
+      // Remove from favorites
+      await supabase
+        .from("favorite_gifs")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("gif_url", gif.url);
+      
+      setFavoriteUrls(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(gif.url);
+        return newSet;
+      });
+      setFavorites(prev => prev.filter(f => f.url !== gif.url));
+    } else {
+      // Add to favorites
+      await supabase
+        .from("favorite_gifs")
+        .insert({
+          user_id: user.id,
+          gif_url: gif.url,
+          gif_title: gif.title,
+          gif_preview_url: gif.preview,
+        });
+      
+      setFavoriteUrls(prev => new Set(prev).add(gif.url));
+      setFavorites(prev => [gif, ...prev]);
+    }
+  };
+
   const loadGifs = async (searchQuery: string, pageNum: number, append = false) => {
+    if (selectedSource === "favorites") {
+      setGifs(favorites);
+      setHasMore(false);
+      return;
+    }
+
     setLoading(true);
     try {
       let allResults: GifResult[] = [];
@@ -152,12 +222,18 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
   useEffect(() => {
     loadGifs("", 1);
+    loadFavorites();
   }, []);
 
   useEffect(() => {
     // Reload GIFs when NSFW toggle or source changes
     setPage(1);
-    loadGifs(search, 1);
+    if (selectedSource === "favorites") {
+      setGifs(favorites);
+      setHasMore(false);
+    } else {
+      loadGifs(search, 1);
+    }
   }, [showNsfw, selectedSource]);
 
   const handleSearch = (value: string) => {
@@ -214,6 +290,16 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
               All
             </button>
             <button
+              onClick={() => setSelectedSource("favorites")}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                selectedSource === "favorites"
+                  ? "bg-indigo-500 text-white"
+                  : "bg-[#404249] text-gray-300 hover:bg-[#4f5058]"
+              }`}
+            >
+              ⭐ Favs
+            </button>
+            <button
               onClick={() => setSelectedSource("custom")}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 selectedSource === "custom"
@@ -249,21 +335,32 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 gap-2">
             {gifs.map((gif) => (
-              <button
-                key={gif.id}
-                onClick={() => onSelect(gif.url)}
-                className="group relative aspect-square overflow-hidden rounded-lg bg-[#404249] hover:ring-2 hover:ring-indigo-500"
-              >
-                <img
-                  src={gif.preview}
-                  alt={gif.title}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-                  <span className="text-sm font-medium text-white">Select</span>
-                </div>
-              </button>
+              <div key={gif.id} className="group relative">
+                <button
+                  onClick={() => onSelect(gif.url)}
+                  className="relative aspect-square w-full overflow-hidden rounded-lg bg-[#404249] hover:ring-2 hover:ring-indigo-500"
+                >
+                  <img
+                    src={gif.preview}
+                    alt={gif.title}
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="text-sm font-medium text-white">Select</span>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFavorite(gif);
+                  }}
+                  className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-lg opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                  title={favoriteUrls.has(gif.url) ? "Remove from favorites" : "Add to favorites"}
+                >
+                  {favoriteUrls.has(gif.url) ? "⭐" : "☆"}
+                </button>
+              </div>
             ))}
           </div>
 

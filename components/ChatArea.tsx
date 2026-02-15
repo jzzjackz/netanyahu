@@ -338,14 +338,25 @@ export default function ChatArea() {
                   <p className="text-gray-500 line-clamp-1">{m.reply_message.content}</p>
                 </div>
               )}
-              <div className="prose prose-invert max-w-none break-words text-gray-200">
-                <div dangerouslySetInnerHTML={{
-                  __html: m.content.replace(/@(\w+)/g, (match, username) => {
-                    const isSelf = username === currentUsername;
-                    return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
-                  })
-                }} />
-              </div>
+              {(() => {
+                // Check if message is just a GIF URL
+                const gifMatch = m.content.match(/^(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)$/i);
+                const isOnlyGif = gifMatch && gifMatch[0] === m.content.trim();
+                
+                // If it's only a GIF, don't show the text
+                if (isOnlyGif) return null;
+                
+                return (
+                  <div className="prose prose-invert max-w-none break-words text-gray-200">
+                    <div dangerouslySetInnerHTML={{
+                      __html: m.content.replace(/@(\w+)/g, (match, username) => {
+                        const isSelf = username === currentUsername;
+                        return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
+                      })
+                    }} />
+                  </div>
+                );
+              })()}
               {m.attachments && m.attachments.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {m.attachments.map((att, idx) => {
@@ -729,14 +740,23 @@ function DMArea({ conversationId }: { conversationId: string }) {
                   {m.profiles?.username ?? "Unknown"}
                 </button>
                 <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
-                {m.content && (
-                  <div dangerouslySetInnerHTML={{
-                    __html: m.content.replace(/@(\w+)/g, (match, username) => {
-                      const isSelf = username === currentUsername;
-                      return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
-                    })
-                  }} className="text-gray-200" />
-                )}
+                {(() => {
+                  // Check if message is just a GIF URL
+                  const gifMatch = m.content?.match(/^(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)$/i);
+                  const isOnlyGif = m.content && gifMatch && gifMatch[0] === m.content.trim();
+                  
+                  // If it's only a GIF, don't show the text
+                  if (isOnlyGif || !m.content) return null;
+                  
+                  return (
+                    <div dangerouslySetInnerHTML={{
+                      __html: m.content.replace(/@(\w+)/g, (match, username) => {
+                        const isSelf = username === currentUsername;
+                        return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
+                      })
+                    }} className="text-gray-200" />
+                  );
+                })()}
                 {m.attachments && m.attachments.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {m.attachments.map((att: { url: string; name: string; type: string }, idx: number) => {
