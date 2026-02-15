@@ -10,6 +10,7 @@ interface GifResult {
   preview: string;
   size: number;
   uploadDate: string;
+  source: "custom" | "klipy";
 }
 
 interface GifPickerProps {
@@ -24,6 +25,9 @@ const NSFW_GIFS = [
   "e7392d2809cd5c9272c9e08a0a3bb17a-1768849930034-291004006.gif"
 ];
 
+// Test API key - replace with your own from https://klipy.com/docs
+const KLIPY_API_KEY = "ffoihGloo4WOyH7lwgboZsWXnaKQopcgv2kP5F8TtuEc7oVd9FthOwcikfkvzBd1";
+
 export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [gifs, setGifs] = useState<GifResult[]>([]);
   const [search, setSearch] = useState("");
@@ -31,10 +35,10 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showNsfw, setShowNsfw] = useState(false);
+  const [selectedSource, setSelectedSource] = useState<"all" | "custom" | "klipy">("all");
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const loadGifs = async (searchQuery: string, pageNum: number, append = false) => {
-    setLoading(true);
+  const loadCustomGifs = async (searchQuery: string, pageNum: number) => {
     try {
       const params = new URLSearchParams({
         page: pageNum.toString(),
@@ -47,17 +51,89 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
       const response = await fetch(`https://yallah-flax.vercel.app/api/gifs?${params}`);
       const data = await response.json();
 
+      const results = data.results.map((gif: any) => ({
+        ...gif,
+        source: "custom" as const,
+      }));
+
       // Filter NSFW GIFs if showNsfw is false
       const filteredResults = showNsfw 
-        ? data.results 
-        : data.results.filter((gif: GifResult) => !NSFW_GIFS.includes(gif.filename));
+        ? results 
+        : results.filter((gif: GifResult) => !NSFW_GIFS.includes(gif.filename));
+
+      return {
+        results: filteredResults,
+        hasMore: data.pagination.hasMore,
+      };
+    } catch (error) {
+      console.error("Failed to load custom GIFs:", error);
+      return { results: [], hasMore: false };
+    }
+  };
+
+  const loadKlipyGifs = async (searchQuery: string, pageNum: number) => {
+    try {
+      const endpoint = searchQuery 
+        ? `https://api.klipy.com/v1/gifs/search?q=${encodeURIComponent(searchQuery)}&limit=20&pos=${(pageNum - 1) * 20}`
+        : `https://api.klipy.com/v1/gifs/trending?limit=20&pos=${(pageNum - 1) * 20}`;
+
+      const response = await fetch(endpoint, {
+        headers: {
+          "api_key": KLIPY_API_KEY,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Klipy API error");
+      }
+
+      const data = await response.json();
+
+      const results = (data.results || []).map((gif: any) => ({
+        id: gif.id,
+        filename: gif.id,
+        title: gif.content_description || gif.title || "GIF",
+        url: gif.media_formats?.gif?.url || gif.media_formats?.tinygif?.url || "",
+        preview: gif.media_formats?.tinygif?.url || gif.media_formats?.gif?.url || "",
+        size: 0,
+        uploadDate: gif.created || new Date().toISOString(),
+        source: "klipy" as const,
+      })).filter((gif: GifResult) => gif.url);
+
+      return {
+        results,
+        hasMore: data.next && data.next !== "",
+      };
+    } catch (error) {
+      console.error("Failed to load Klipy GIFs:", error);
+      return { results: [], hasMore: false };
+    }
+  };
+
+  const loadGifs = async (searchQuery: string, pageNum: number, append = false) => {
+    setLoading(true);
+    try {
+      let allResults: GifResult[] = [];
+      let hasMoreResults = false;
+
+      if (selectedSource === "all" || selectedSource === "custom") {
+        const customData = await loadCustomGifs(searchQuery, pageNum);
+        allResults = [...allResults, ...customData.results];
+        hasMoreResults = hasMoreResults || customData.hasMore;
+      }
+
+      if (selectedSource === "all" || selectedSource === "klipy") {
+        const klipyData = await loadKlipyGifs(searchQuery, pageNum);
+        allResults = [...allResults, ...klipyData.results];
+        hasMoreResults = hasMoreResults || klipyData.hasMore;
+      }
 
       if (append) {
-        setGifs((prev) => [...prev, ...filteredResults]);
+        setGifs((prev) => [...prev, ...allResults]);
       } else {
-        setGifs(filteredResults);
+        setGifs(allResults);
       }
-      setHasMore(data.pagination.hasMore);
+      setHasMore(hasMoreResults);
     } catch (error) {
       console.error("Failed to load GIFs:", error);
     } finally {
@@ -70,10 +146,10 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   }, []);
 
   useEffect(() => {
-    // Reload GIFs when NSFW toggle changes
+    // Reload GIFs when NSFW toggle or source changes
     setPage(1);
     loadGifs(search, 1);
-  }, [showNsfw]);
+  }, [showNsfw, selectedSource]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -116,6 +192,39 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
             placeholder="Search GIFs..."
             className="w-full rounded-lg bg-[#404249] px-4 py-2 text-sm text-white outline-none placeholder:text-gray-500 focus:ring-2 focus:ring-indigo-500"
           />
+          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedSource("all")}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                selectedSource === "all"
+                  ? "bg-indigo-500 text-white"
+                  : "bg-[#404249] text-gray-300 hover:bg-[#4f5058]"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setSelectedSource("custom")}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                selectedSource === "custom"
+                  ? "bg-indigo-500 text-white"
+                  : "bg-[#404249] text-gray-300 hover:bg-[#4f5058]"
+              }`}
+            >
+              Custom
+            </button>
+            <button
+              onClick={() => setSelectedSource("klipy")}
+              className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                selectedSource === "klipy"
+                  ? "bg-indigo-500 text-white"
+                  : "bg-[#404249] text-gray-300 hover:bg-[#4f5058]"
+              }`}
+            >
+              Klipy
+            </button>
+          </div>
           
           <label className="flex items-center gap-2 text-sm text-gray-300">
             <input
