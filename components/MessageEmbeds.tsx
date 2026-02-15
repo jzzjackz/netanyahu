@@ -13,12 +13,21 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
   const [inviteData, setInviteData] = useState<any>(null);
   const [linkPreview, setLinkPreview] = useState<any>(null);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id ?? null);
+    });
+  }, [supabase.auth]);
 
   useEffect(() => {
     // Check for GIF URLs (GIPHY, Tenor, custom API, or any .gif)
     const gifMatch = content.match(/(https?:\/\/[^\s]+\.gif|https?:\/\/media\.giphy\.com\/[^\s]+|https?:\/\/[^\s]*giphy[^\s]*|https?:\/\/[^\s]*tenor[^\s]*|https?:\/\/yallah-flax\.vercel\.app\/cdn\/[^\s]+)/i);
     if (gifMatch) {
       setGifUrl(gifMatch[1]);
+      checkIfFavorite(gifMatch[1]);
       return; // Don't process other embeds if it's a GIF
     }
 
@@ -45,16 +54,57 @@ export default function MessageEmbeds({ content }: MessageEmbedsProps) {
     }
   }, [content, supabase]);
 
+  const checkIfFavorite = async (url: string) => {
+    if (!userId) return;
+    const { data } = await supabase
+      .from("favorite_gifs")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("gif_url", url)
+      .maybeSingle();
+    setIsFavorite(!!data);
+  };
+
+  const toggleFavorite = async () => {
+    if (!userId || !gifUrl) return;
+
+    if (isFavorite) {
+      await supabase
+        .from("favorite_gifs")
+        .delete()
+        .eq("user_id", userId)
+        .eq("gif_url", gifUrl);
+      setIsFavorite(false);
+    } else {
+      await supabase
+        .from("favorite_gifs")
+        .insert({
+          user_id: userId,
+          gif_url: gifUrl,
+          gif_title: "GIF",
+          gif_preview_url: gifUrl,
+        });
+      setIsFavorite(true);
+    }
+  };
+
   return (
     <>
       {gifUrl && (
-        <div className="mt-2">
+        <div className="group relative mt-2 inline-block">
           <img
             src={gifUrl}
             alt="GIF"
             className="max-h-80 max-w-md rounded border border-[#404249] object-contain"
             loading="lazy"
           />
+          <button
+            onClick={toggleFavorite}
+            className="absolute right-2 top-2 rounded-full bg-black/60 p-2 text-xl opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            {isFavorite ? "⭐" : "☆"}
+          </button>
         </div>
       )}
       {inviteData && !gifUrl && (
