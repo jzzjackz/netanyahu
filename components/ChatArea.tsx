@@ -25,13 +25,25 @@ export default function ChatArea() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      setUserId(user?.id ?? null);
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+        setCurrentUsername(profile?.username || "");
+      }
+    });
   }, [supabase.auth]);
 
   useEffect(() => {
@@ -159,13 +171,19 @@ export default function ChatArea() {
       setUploadingFiles(false);
     }
     
-    await supabase.from("messages").insert({
+    const { data: insertedMessage } = await supabase.from("messages").insert({
       channel_id: currentChannelId,
       author_id: user.id,
       content: content.trim() || "",
       reply_to: replyingTo?.id || null,
       attachments: attachments.length > 0 ? attachments : [],
-    });
+    }).select().single();
+    
+    // Create mentions if any
+    if (insertedMessage && content.trim()) {
+      await createMentions(supabase, insertedMessage.id, currentChannelId, content.trim(), user.id);
+    }
+    
     setContent("");
     setReplyingTo(null);
     setSelectedFiles([]);
@@ -287,15 +305,27 @@ export default function ChatArea() {
         {messages.length === 0 && (
           <p className="text-gray-500">No messages yet. Send the first one!</p>
         )}
-        {messages.map((m) => (
-          <div key={m.id} className="group flex gap-3 py-1 hover:bg-white/5">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold">
-              {(m.profiles?.username ?? m.author_id?.slice(0, 2) ?? "?").toString().slice(0, 1).toUpperCase()}
-            </div>
+        {messages.map((m) => {
+          const mentionedSelf = m.content.includes(`@${currentUsername}`);
+          return (
+          <div key={m.id} className={`group flex gap-3 py-1 hover:bg-white/5 ${mentionedSelf ? 'bg-yellow-500/10 border-l-2 border-yellow-500 pl-2' : ''}`}>
+            <button
+              onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
+              className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold hover:opacity-80"
+            >
+              {m.profiles?.avatar_url ? (
+                <img src={m.profiles.avatar_url} alt={m.profiles.username} className="h-full w-full rounded-full object-cover" />
+              ) : (
+                (m.profiles?.username ?? m.author_id?.slice(0, 2) ?? "?").toString().slice(0, 1).toUpperCase()
+              )}
+            </button>
             <div className="min-w-0 flex-1">
-              <span className="mr-2 font-medium text-white">
+              <button
+                onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
+                className="mr-2 font-medium text-white hover:underline"
+              >
                 {m.profiles?.username ?? "Unknown"}
-              </span>
+              </button>
               <span className="text-xs text-gray-500">
                 {m.created_at && format(new Date(m.created_at), "MMM d, HH:mm")}
               </span>
@@ -308,7 +338,12 @@ export default function ChatArea() {
                 </div>
               )}
               <div className="prose prose-invert max-w-none break-words text-gray-200">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                <div dangerouslySetInnerHTML={{
+                  __html: m.content.replace(/@(\w+)/g, (match, username) => {
+                    const isSelf = username === currentUsername;
+                    return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
+                  })
+                }} />
               </div>
               {m.attachments && m.attachments.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -361,7 +396,8 @@ export default function ChatArea() {
               </div>
             </div>
           </div>
-        ))}
+        );
+        })}
         {typingUsers.size > 0 && (
           <div className="flex items-center gap-2 py-2 text-sm text-gray-400">
             <div className="flex gap-1">
@@ -443,6 +479,12 @@ export default function ChatArea() {
           </button>
         </div>
       </form>
+      {profileModalUserId && (
+        <UserProfileModal
+          userId={profileModalUserId}
+          onClose={() => setProfileModalUserId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -458,6 +500,8 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -465,6 +509,15 @@ function DMArea({ conversationId }: { conversationId: string }) {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id ?? null);
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+        setCurrentUsername(profile?.username || "");
+      }
       
       // Get conversation details to find other user
       const { data: convo } = await supabase
@@ -555,12 +608,18 @@ function DMArea({ conversationId }: { conversationId: string }) {
       setUploadingFiles(false);
     }
     
-    await supabase.from("direct_messages").insert({
+    const { data: insertedMessage } = await supabase.from("direct_messages").insert({
       conversation_id: conversationId,
       author_id: user.id,
       content: content.trim() || "",
       attachments: attachments.length > 0 ? attachments : [],
-    });
+    }).select().single();
+    
+    // Create mentions if any
+    if (insertedMessage && content.trim()) {
+      await createDMMentions(supabase, insertedMessage.id, conversationId, content.trim(), user.id);
+    }
+    
     setContent("");
     setSelectedFiles([]);
     setSending(false);
@@ -620,15 +679,36 @@ function DMArea({ conversationId }: { conversationId: string }) {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-4">
-          {messages.map((m) => (
-            <div key={m.id} className="flex gap-3 py-1">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold">
-                {(m.profiles?.username ?? "?").toString().slice(0, 1).toUpperCase()}
-              </div>
+          {messages.map((m) => {
+            const mentionedSelf = m.content && m.content.includes(`@${currentUsername}`);
+            return (
+            <div key={m.id} className={`flex gap-3 py-1 ${mentionedSelf ? 'bg-yellow-500/10 border-l-2 border-yellow-500 pl-2' : ''}`}>
+              <button
+                onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold hover:opacity-80"
+              >
+                {m.profiles?.avatar_url ? (
+                  <img src={m.profiles.avatar_url} alt={m.profiles.username} className="h-full w-full rounded-full object-cover" />
+                ) : (
+                  (m.profiles?.username ?? "?").toString().slice(0, 1).toUpperCase()
+                )}
+              </button>
               <div className="min-w-0 flex-1">
-                <span className="mr-2 font-medium text-white">{m.profiles?.username ?? "Unknown"}</span>
+                <button
+                  onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
+                  className="mr-2 font-medium text-white hover:underline"
+                >
+                  {m.profiles?.username ?? "Unknown"}
+                </button>
                 <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
-                {m.content && <p className="text-gray-200">{m.content}</p>}
+                {m.content && (
+                  <div dangerouslySetInnerHTML={{
+                    __html: m.content.replace(/@(\w+)/g, (match, username) => {
+                      const isSelf = username === currentUsername;
+                      return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
+                    })
+                  }} className="text-gray-200" />
+                )}
                 {m.attachments && m.attachments.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {m.attachments.map((att: { url: string; name: string; type: string }, idx: number) => {
@@ -663,7 +743,8 @@ function DMArea({ conversationId }: { conversationId: string }) {
                 )}
               </div>
             </div>
-          ))}
+          );
+          })}
           <div ref={messagesEndRef} />
         </div>
         <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
@@ -722,6 +803,12 @@ function DMArea({ conversationId }: { conversationId: string }) {
           </div>
         </form>
       </div>
+      {profileModalUserId && (
+        <UserProfileModal
+          userId={profileModalUserId}
+          onClose={() => setProfileModalUserId(null)}
+        />
+      )}
     </>
   );
 }
