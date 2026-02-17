@@ -915,6 +915,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
                     })}
                   </div>
                 )}
+                <MessageEmbeds content={m.content || ""} />
                 {editingMessageId !== m.id && (
                   <div className="mt-1 hidden gap-2 group-hover:flex">
                     {m.author_id === userId && (
