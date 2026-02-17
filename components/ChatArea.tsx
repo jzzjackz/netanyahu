@@ -611,8 +611,10 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [incomingCall, setIncomingCall] = useState<{ from: string; username: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -680,6 +682,34 @@ function DMArea({ conversationId }: { conversationId: string }) {
     ).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [conversationId, supabase]);
+
+  // Listen for incoming calls
+  useEffect(() => {
+    if (!userId) return;
+
+    const callChannel = supabase.channel(`dm_call:${conversationId}`);
+    
+    callChannel.on("broadcast", { event: "incoming_call" }, ({ payload }) => {
+      if (payload.to === userId) {
+        setIncomingCall({ from: payload.from, username: payload.username });
+        
+        // Play ringtone
+        if (!ringtoneRef.current) {
+          ringtoneRef.current = new Audio("/sounds/ringtone.ogg");
+          ringtoneRef.current.loop = true;
+        }
+        ringtoneRef.current.play().catch(err => console.error("Failed to play ringtone:", err));
+      }
+    }).subscribe();
+
+    return () => {
+      supabase.removeChannel(callChannel);
+      if (ringtoneRef.current) {
+        ringtoneRef.current.pause();
+        ringtoneRef.current = null;
+      }
+    };
+  }, [conversationId, userId, supabase]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -783,10 +813,62 @@ function DMArea({ conversationId }: { conversationId: string }) {
     setInCall(true);
   };
 
+  const handleAcceptCall = () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current = null;
+    }
+    setIncomingCall(null);
+    setInCall(true);
+  };
+
+  const handleDeclineCall = () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause();
+      ringtoneRef.current = null;
+    }
+    setIncomingCall(null);
+  };
+
   if (loading) return <div className="flex flex-1 items-center justify-center bg-[#313338]">Loading...</div>;
 
   return (
     <>
+      {incomingCall && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="w-full max-w-md rounded-lg bg-[#2b2d31] p-8 shadow-2xl">
+            <div className="mb-6 flex flex-col items-center gap-4">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#5865f2] text-3xl font-bold">
+                {incomingCall.username[0]?.toUpperCase()}
+              </div>
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white">{incomingCall.username}</h2>
+                <p className="text-sm text-gray-400">Incoming call...</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={handleDeclineCall}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-red-500 px-6 py-3 font-medium transition hover:bg-red-600"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                </svg>
+                Decline
+              </button>
+              <button
+                onClick={handleAcceptCall}
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-green-500 px-6 py-3 font-medium transition hover:bg-green-600"
+              >
+                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                </svg>
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {inCall && otherUser && (
         <PrivateCall
           conversationId={conversationId}
