@@ -224,7 +224,7 @@ export default function AppShell() {
   }, [currentChannelId, currentConversationId]);
 
   return (
-    <div className="flex h-full w-full relative">
+    <div className="flex h-full w-full">
       <AnnouncementBanner />
       {notification && (
         <MessageNotification
@@ -234,7 +234,7 @@ export default function AppShell() {
         />
       )}
       
-      {/* Mobile Menu Button - Only visible on mobile */}
+      {/* Mobile Menu Button */}
       <button
         onClick={() => setShowMobileSidebar(!showMobileSidebar)}
         className="fixed left-4 top-4 z-50 rounded-lg bg-[#5865f2] p-2 md:hidden"
@@ -245,7 +245,7 @@ export default function AppShell() {
         </svg>
       </button>
       
-      {/* Mobile Overlay - Only on mobile when sidebar is open */}
+      {/* Mobile Overlay */}
       {showMobileSidebar && (
         <div
           className="fixed inset-0 z-30 bg-black/50 md:hidden"
@@ -253,30 +253,19 @@ export default function AppShell() {
         />
       )}
       
-      {/* Server Sidebar */}
+      {/* Sidebars Container */}
       <div className={`
+        fixed inset-y-0 left-0 z-40 flex
+        transition-transform duration-300
         ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
-        fixed inset-y-0 left-0 z-40 transition-transform
-        md:relative md:translate-x-0 md:z-auto
+        md:relative md:translate-x-0 md:z-0
       `}>
         <ServerSidebar />
-      </div>
-      
-      {/* Channel Sidebar */}
-      <div className={`
-        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
-        fixed inset-y-0 left-[72px] z-40 transition-transform
-        md:relative md:left-0 md:translate-x-0 md:z-auto
-      `}>
         <ChannelSidebar />
       </div>
       
-      {/* Main Chat Area */}
-      <div className="flex-1 min-w-0">
-        <ChatArea />
-      </div>
+      <ChatArea />
       
-      {/* Member List / Friends Panel - Hidden on mobile */}
       <div className="hidden lg:block">
         {currentServerId ? <MemberList /> : <FriendsPanel />}
       </div>
