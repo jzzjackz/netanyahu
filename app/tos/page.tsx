@@ -4,8 +4,8 @@ import Link from "next/link";
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-[#313338] text-white">
-      <div className="mx-auto max-w-4xl p-6">
+    <div className="flex h-screen flex-col bg-[#313338] text-white overflow-hidden">
+      <div className="mx-auto w-full max-w-4xl flex-1 overflow-y-auto p-6">
         <Link
           href="/"
           className="mb-6 inline-flex items-center gap-2 text-sm text-[#b5bac1] hover:text-white"
@@ -48,59 +48,49 @@ export default function TermsOfService() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">4. Content</h2>
-            <p className="mb-2">
-              You retain ownership of content you post on the Services. By posting content, you grant us a worldwide, non-exclusive, royalty-free license to use, reproduce, and display your content in connection with operating the Services.
-            </p>
-            <p>
-              You are solely responsible for the content you post. We reserve the right to remove any content that violates these Terms or is otherwise objectionable.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">5. Account Termination</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">4. Account Termination</h2>
             <p>
               We reserve the right to suspend or terminate your account at any time for violations of these Terms, illegal activity, or any other reason we deem appropriate. You may also delete your account at any time.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">6. Privacy</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">5. Privacy</h2>
             <p>
               Your use of the Services is also governed by our Privacy Policy. We collect and use your information as described in our Privacy Policy to provide and improve the Services.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">7. Intellectual Property</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">6. Intellectual Property</h2>
             <p>
               The Services and their original content, features, and functionality are owned by us and are protected by international copyright, trademark, and other intellectual property laws.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">8. Disclaimer of Warranties</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">7. Disclaimer of Warranties</h2>
             <p>
               The Services are provided "as is" and "as available" without warranties of any kind, either express or implied. We do not warrant that the Services will be uninterrupted, secure, or error-free.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">9. Limitation of Liability</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">8. Limitation of Liability</h2>
             <p>
               To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the Services.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">10. Changes to Terms</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">9. Changes to Terms</h2>
             <p>
               We reserve the right to modify these Terms at any time. We will notify users of any material changes by posting the new Terms on this page. Your continued use of the Services after such changes constitutes acceptance of the new Terms.
             </p>
           </section>
 
           <section>
-            <h2 className="mb-3 text-2xl font-semibold text-white">11. Contact</h2>
+            <h2 className="mb-3 text-2xl font-semibold text-white">10. Contact</h2>
             <p>
               If you have any questions about these Terms, please contact us through the platform's support channels.
             </p>

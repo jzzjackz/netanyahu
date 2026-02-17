@@ -36,7 +36,6 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [showNsfw, setShowNsfw] = useState(false);
   const [selectedSource, setSelectedSource] = useState<"all" | "custom" | "giphy" | "favorites">("all");
   const [favorites, setFavorites] = useState<GifResult[]>([]);
   const [favoriteUrls, setFavoriteUrls] = useState<Set<string>>(new Set());
@@ -61,10 +60,8 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
         source: "custom" as const,
       }));
 
-      // Filter NSFW GIFs if showNsfw is false
-      const filteredResults = showNsfw 
-        ? results 
-        : results.filter((gif: GifResult) => !NSFW_GIFS.includes(gif.filename));
+      // Always filter out NSFW GIFs
+      const filteredResults = results.filter((gif: GifResult) => !NSFW_GIFS.includes(gif.filename));
 
       return {
         results: filteredResults,
@@ -82,8 +79,8 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
       const offset = (pageNum - 1) * limit;
       
       const endpoint = searchQuery 
-        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}&rating=${showNsfw ? 'r' : 'pg-13'}`
-        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&offset=${offset}&rating=${showNsfw ? 'r' : 'pg-13'}`;
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${offset}&rating=pg-13`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=${limit}&offset=${offset}&rating=pg-13`;
 
       console.log("Fetching from GIPHY:", endpoint);
 
@@ -226,7 +223,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   }, []);
 
   useEffect(() => {
-    // Reload GIFs when NSFW toggle or source changes
+    // Reload GIFs when source changes
     setPage(1);
     if (selectedSource === "favorites") {
       setGifs(favorites);
@@ -234,7 +231,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
     } else {
       loadGifs(search, 1);
     }
-  }, [showNsfw, selectedSource]);
+  }, [selectedSource]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -320,16 +317,6 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
               GIPHY
             </button>
           </div>
-          
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={showNsfw}
-              onChange={(e) => setShowNsfw(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-600 bg-[#404249] text-indigo-500 focus:ring-2 focus:ring-indigo-500"
-            />
-            <span>Show NSFW content</span>
-          </label>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
