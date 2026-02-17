@@ -1,5 +1,13 @@
 "use client";
 
+// SETUP INSTRUCTIONS:
+// 1. Go to https://discord.com/developers/applications
+// 2. Create a new application
+// 3. Go to OAuth2 section
+// 4. Add redirect URL: https://your-domain.com/migrate (or http://localhost:3000/migrate for local dev)
+// 5. Copy your Client ID
+// 6. Add to .env.local: NEXT_PUBLIC_DISCORD_CLIENT_ID=your_client_id_here
+
 import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../../../lib/supabaseClient";
 
@@ -64,15 +72,21 @@ export default function MigratePage() {
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "discord",
-        options: {
-          redirectTo: `${window.location.origin}/migrate`,
-          scopes: "identify",
-        },
-      });
-
-      if (error) throw error;
+      // Get Discord Client ID from environment or use placeholder
+      const clientId = process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID;
+      
+      if (!clientId || clientId === "YOUR_DISCORD_CLIENT_ID") {
+        setError("Discord OAuth is not configured. Please add NEXT_PUBLIC_DISCORD_CLIENT_ID to your .env.local file");
+        setLoading(false);
+        return;
+      }
+      
+      const redirectUri = encodeURIComponent(`${window.location.origin}/migrate`);
+      const scope = "identify";
+      
+      const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}`;
+      
+      window.location.href = discordAuthUrl;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to connect to Discord");
       setLoading(false);
