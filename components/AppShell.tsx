@@ -257,27 +257,28 @@ export default function AppShell() {
       {/* Mobile Overlay */}
       {isMobile && showMobileMenu && (
         <div
-          className="fixed inset-0 z-30 bg-black/50"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={() => setShowMobileMenu(false)}
         />
       )}
       
-      {/* Sidebars */}
-      <div className={`${isMobile ? 'fixed inset-y-0 left-0 z-40 transform transition-transform' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full' : 'translate-x-0'}`}>
+      {/* Server Sidebar */}
+      <div className={`${isMobile ? 'fixed inset-y-0 left-0 z-40 md:relative' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full md:translate-x-0' : ''} transition-transform`}>
         <ServerSidebar />
       </div>
       
-      <div className={`${isMobile ? 'fixed inset-y-0 left-[72px] z-40 transform transition-transform' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full' : 'translate-x-0'}`}>
+      {/* Channel Sidebar */}
+      <div className={`${isMobile ? 'fixed inset-y-0 left-[72px] z-40 md:relative md:left-0' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full md:translate-x-0' : ''} transition-transform`}>
         <ChannelSidebar />
       </div>
       
       {/* Main Content */}
-      <div className={`flex-1 ${isMobile ? 'w-full' : ''}`}>
-        <ChatArea />
-      </div>
+      <ChatArea />
       
-      {/* Member List / Friends Panel - Hidden on mobile */}
-      {!isMobile && (currentServerId ? <MemberList /> : <FriendsPanel />)}
+      {/* Member List / Friends Panel - Hidden on small screens */}
+      <div className="hidden lg:block">
+        {currentServerId ? <MemberList /> : <FriendsPanel />}
+      </div>
       
       {voiceChannel && (
         <VoiceCall
