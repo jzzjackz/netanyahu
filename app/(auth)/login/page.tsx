@@ -34,9 +34,9 @@ function LoginForm() {
       <div className="w-full max-w-[480px] rounded-lg bg-[#2b2d31] p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <h1 className="mb-2 text-2xl font-bold">
-            Welcome back!
+            Heya, Glad to see you again!
           </h1>
-          <p className="text-sm text-gray-400">We're so excited to see you again!</p>
+          <p className="text-sm text-gray-400">Login with your AllInOne account below.</p>
         </div>
         <form className="space-y-5" onSubmit={handleEmailLogin}>
           <div>
@@ -87,7 +87,7 @@ function LoginForm() {
             <div className="w-full border-t border-[#3f4147]"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-[#2b2d31] px-2 text-gray-500">OR</span>
+            <span className="bg-[#2b2d31] px-2 text-gray-500">Moving from discord?</span>
           </div>
         </div>
         <a
