@@ -23,6 +23,23 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  body {
+    /* Prevent zoom on input focus */
+    touch-action: manipulation;
+  }
+  
+  /* Ensure mobile viewport fills screen */
+  html {
+    height: -webkit-fill-available;
+  }
+  
+  body {
+    min-height: -webkit-fill-available;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
