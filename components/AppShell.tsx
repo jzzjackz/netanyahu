@@ -253,22 +253,30 @@ export default function AppShell() {
         />
       )}
       
-      {/* Server Sidebar - Hidden on mobile unless menu is open */}
-      <div className={`${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-0 z-40 transition-transform md:relative md:translate-x-0`}>
+      {/* Server Sidebar */}
+      <div className={`
+        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 left-0 z-40 transition-transform
+        md:relative md:translate-x-0 md:z-auto
+      `}>
         <ServerSidebar />
       </div>
       
-      {/* Channel Sidebar - Hidden on mobile unless menu is open */}
-      <div className={`${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'} fixed inset-y-0 left-[72px] z-40 transition-transform md:relative md:left-0 md:translate-x-0`}>
+      {/* Channel Sidebar */}
+      <div className={`
+        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 left-[72px] z-40 transition-transform
+        md:relative md:left-0 md:translate-x-0 md:z-auto
+      `}>
         <ChannelSidebar />
       </div>
       
-      {/* Main Chat Area - Always visible, takes full width on mobile */}
+      {/* Main Chat Area */}
       <div className="flex-1 min-w-0">
         <ChatArea />
       </div>
       
-      {/* Member List / Friends Panel - Hidden on mobile, visible on desktop */}
+      {/* Member List / Friends Panel - Hidden on mobile */}
       <div className="hidden lg:block">
         {currentServerId ? <MemberList /> : <FriendsPanel />}
       </div>
