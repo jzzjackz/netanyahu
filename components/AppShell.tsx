@@ -20,22 +20,9 @@ export default function AppShell() {
   const [voiceChannelKey, setVoiceChannelKey] = useState(0);
   const [notification, setNotification] = useState<{ sender: string; message: string; conversationId: string } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   
   // Use ref to track current conversation without causing re-subscriptions
   const currentConversationIdRef = useRef(currentConversationId);
-  
-  // Detect mobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
   
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
