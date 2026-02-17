@@ -110,8 +110,8 @@ export default function CompleteMigrationPage() {
 
   if (!migrationData) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-[#1e1f22] text-white">
-        <div className="w-full max-w-md rounded-md bg-[#313338] p-8 shadow-lg">
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#313338] text-white">
+        <div className="w-full max-w-[480px] rounded-lg bg-[#2b2d31] p-8 shadow-2xl">
           <h1 className="text-center text-xl">Loading...</h1>
         </div>
       </div>
@@ -119,54 +119,56 @@ export default function CompleteMigrationPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-[#1e1f22] text-white">
-      <div className="w-full max-w-md rounded-md bg-[#313338] p-8 shadow-lg">
-        <h1 className="mb-2 text-center text-2xl font-semibold">
-          Complete Your Migration
-        </h1>
-        <p className="mb-6 text-center text-sm text-gray-400">
-          Almost done! Set up your Commz credentials
-        </p>
+    <div className="flex min-h-screen w-full items-center justify-center bg-[#313338] text-white">
+      <div className="w-full max-w-[480px] rounded-lg bg-[#2b2d31] p-8 shadow-2xl">
+        <div className="mb-8 text-center">
+          <h1 className="mb-2 text-2xl font-bold">
+            Complete Your Migration
+          </h1>
+          <p className="text-sm text-[#b5bac1]">
+            Almost done! Set up your Commz credentials
+          </p>
+        </div>
 
-        <div className="mb-6 flex flex-col items-center gap-3 rounded-lg bg-[#2b2d31] p-4">
+        <div className="mb-6 flex flex-col items-center gap-3 rounded-md bg-[#232428] p-4 border border-[#3f4147]">
           {migrationData.avatar && (
             <img
               src={migrationData.avatar}
               alt="Profile"
-              className="h-20 w-20 rounded-full"
+              className="h-20 w-20 rounded-full ring-4 ring-[#5865f2]/20"
             />
           )}
           <div className="text-center">
-            <p className="font-semibold">{migrationData.username}</p>
-            <p className="text-xs text-gray-400">Discord Profile</p>
+            <p className="font-semibold text-white">{migrationData.username}</p>
+            <p className="text-xs text-[#b5bac1]">Discord Profile</p>
           </div>
         </div>
 
-        <form className="space-y-4" onSubmit={handleCompleteMigration}>
+        <form className="space-y-5" onSubmit={handleCompleteMigration}>
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-gray-300">
-              Email
+            <label className="mb-2 block text-xs font-bold uppercase text-[#b5bac1]">
+              Email <span className="text-red-400">*</span>
             </label>
             <input
               type="email"
-              className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none ring-1 ring-[#1e1f22] focus:ring-indigo-500"
+              className="w-full rounded-sm bg-[#1e1f22] px-3 py-2.5 text-[15px] outline-none transition focus:ring-1 focus:ring-[#00a8fc]"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
               required
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-[#b5bac1]">
               You'll use this to log in to Commz
             </p>
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-gray-300">
-              Password
+            <label className="mb-2 block text-xs font-bold uppercase text-[#b5bac1]">
+              Password <span className="text-red-400">*</span>
             </label>
             <input
               type="password"
-              className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none ring-1 ring-[#1e1f22] focus:ring-indigo-500"
+              className="w-full rounded-sm bg-[#1e1f22] px-3 py-2.5 text-[15px] outline-none transition focus:ring-1 focus:ring-[#00a8fc]"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Create a password"
@@ -176,12 +178,12 @@ export default function CompleteMigrationPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase text-gray-300">
-              Confirm Password
+            <label className="mb-2 block text-xs font-bold uppercase text-[#b5bac1]">
+              Confirm Password <span className="text-red-400">*</span>
             </label>
             <input
               type="password"
-              className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none ring-1 ring-[#1e1f22] focus:ring-indigo-500"
+              className="w-full rounded-sm bg-[#1e1f22] px-3 py-2.5 text-[15px] outline-none transition focus:ring-1 focus:ring-[#00a8fc]"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm your password"
@@ -191,15 +193,15 @@ export default function CompleteMigrationPage() {
           </div>
 
           {error && (
-            <p className="text-xs text-red-400" aria-live="polite">
+            <div className="rounded bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-400">
               {error}
-            </p>
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex w-full items-center justify-center rounded bg-indigo-500 px-4 py-2.5 text-sm font-semibold transition hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-70"
+            className="mt-2 flex w-full items-center justify-center rounded-sm bg-[#5865f2] px-4 py-2.5 text-[15px] font-medium transition hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? "Creating account..." : "Complete Migration"}
           </button>
@@ -211,7 +213,7 @@ export default function CompleteMigrationPage() {
                 sessionStorage.removeItem("discord_migration");
                 window.location.href = "/migrate";
               }}
-              className="text-xs text-gray-400 hover:text-gray-300"
+              className="text-sm text-[#00a8fc] hover:underline"
             >
               Start over
             </button>
