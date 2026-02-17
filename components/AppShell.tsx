@@ -276,7 +276,7 @@ export default function AppShell() {
         <div className="lg:hidden">
           <button
             onClick={() => setShowMobileSidebar(true)}
-            className="fixed right-4 top-4 z-50 rounded-lg bg-[#5865f2] p-2"
+            className="fixed right-4 bottom-4 z-50 rounded-full bg-[#5865f2] p-4 shadow-lg"
             aria-label="Friends"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
