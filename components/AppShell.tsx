@@ -8,6 +8,7 @@ import MemberList from "./MemberList";
 import FriendsPanel from "./FriendsPanel";
 import VoiceCall from "./VoiceCall";
 import MessageNotification from "./MessageNotification";
+import AnnouncementBanner from "./AnnouncementBanner";
 import { useAppStore } from "../lib/store";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import type { Channel, DirectMessage, Profile } from "../lib/types";
@@ -219,6 +220,7 @@ export default function AppShell() {
 
   return (
     <div className="flex h-full w-full">
+      <AnnouncementBanner />
       {notification && (
         <MessageNotification
           senderUsername={notification.sender}
