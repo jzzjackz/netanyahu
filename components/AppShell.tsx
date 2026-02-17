@@ -20,9 +20,22 @@ export default function AppShell() {
   const [voiceChannelKey, setVoiceChannelKey] = useState(0);
   const [notification, setNotification] = useState<{ sender: string; message: string; conversationId: string } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   // Use ref to track current conversation without causing re-subscriptions
   const currentConversationIdRef = useRef(currentConversationId);
+  
+  // Detect mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
@@ -228,10 +241,44 @@ export default function AppShell() {
           onClose={() => setNotification(null)}
         />
       )}
-      <ServerSidebar />
-      <ChannelSidebar />
-      <ChatArea />
-      {currentServerId ? <MemberList /> : <FriendsPanel />}
+      
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <button
+          onClick={() => setShowMobileMenu(!showMobileMenu)}
+          className="fixed left-4 top-4 z-40 rounded-lg bg-[#5865f2] p-2 md:hidden"
+        >
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      )}
+      
+      {/* Mobile Overlay */}
+      {isMobile && showMobileMenu && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50"
+          onClick={() => setShowMobileMenu(false)}
+        />
+      )}
+      
+      {/* Sidebars */}
+      <div className={`${isMobile ? 'fixed inset-y-0 left-0 z-40 transform transition-transform' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full' : 'translate-x-0'}`}>
+        <ServerSidebar />
+      </div>
+      
+      <div className={`${isMobile ? 'fixed inset-y-0 left-[72px] z-40 transform transition-transform' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full' : 'translate-x-0'}`}>
+        <ChannelSidebar />
+      </div>
+      
+      {/* Main Content */}
+      <div className={`flex-1 ${isMobile ? 'w-full' : ''}`}>
+        <ChatArea />
+      </div>
+      
+      {/* Member List / Friends Panel - Hidden on mobile */}
+      {!isMobile && (currentServerId ? <MemberList /> : <FriendsPanel />)}
+      
       {voiceChannel && (
         <VoiceCall
           key={voiceChannelKey}
