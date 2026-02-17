@@ -7,9 +7,10 @@ interface MessageNotificationProps {
   senderUsername: string;
   message: string;
   onClose: () => void;
+  onClick?: () => void;
 }
 
-export default function MessageNotification({ senderUsername, message, onClose }: MessageNotificationProps) {
+export default function MessageNotification({ senderUsername, message, onClose, onClick }: MessageNotificationProps) {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
@@ -33,7 +34,16 @@ export default function MessageNotification({ senderUsername, message, onClose }
 
   return (
     <div className="fixed right-4 top-4 z-50 animate-in slide-in-from-top-5 fade-in duration-300">
-      <div className="flex w-80 items-start gap-3 rounded-lg bg-[#313338] p-4 shadow-2xl ring-1 ring-white/10">
+      <div 
+        onClick={() => {
+          if (onClick) {
+            onClick();
+            setIsVisible(false);
+            setTimeout(onClose, 300);
+          }
+        }}
+        className={`flex w-80 items-start gap-3 rounded-lg bg-[#313338] p-4 shadow-2xl ring-1 ring-white/10 ${onClick ? 'cursor-pointer hover:bg-[#3a3d44]' : ''}`}
+      >
         {/* Sender Avatar */}
         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-bold">
           {senderUsername.slice(0, 1).toUpperCase()}
@@ -44,7 +54,8 @@ export default function MessageNotification({ senderUsername, message, onClose }
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-white">{senderUsername}</h3>
             <button
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setIsVisible(false);
                 setTimeout(onClose, 300);
               }}

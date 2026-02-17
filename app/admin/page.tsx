@@ -163,8 +163,8 @@ export default function AdminPanel() {
   if (!isAdmin) return null;
 
   return (
-    <div className="min-h-screen bg-[#313338] text-white">
-      <div className="mx-auto max-w-7xl p-6">
+    <div className="flex h-screen flex-col bg-[#313338] text-white overflow-hidden">
+      <div className="mx-auto w-full max-w-7xl flex-1 overflow-y-auto p-6">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-bold">Admin Panel</h1>
           <Link
@@ -218,7 +218,7 @@ export default function AdminPanel() {
         {/* Banned Users */}
         <div className="mb-8 rounded-lg bg-[#2b2d31] p-6">
           <h2 className="mb-4 text-xl font-bold">Banned Users ({bans.length})</h2>
-          <div className="space-y-2">
+          <div className="max-h-96 overflow-y-auto space-y-2">
             {bans.length === 0 ? (
               <p className="text-sm text-gray-400">No banned users</p>
             ) : (
@@ -249,9 +249,9 @@ export default function AdminPanel() {
         {/* All Users */}
         <div className="rounded-lg bg-[#2b2d31] p-6">
           <h2 className="mb-4 text-xl font-bold">All Users ({users.length})</h2>
-          <div className="overflow-x-auto">
+          <div className="max-h-[600px] overflow-y-auto">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 bg-[#2b2d31]">
                 <tr className="border-b border-[#404249] text-left text-sm text-gray-400">
                   <th className="pb-2">Username</th>
                   <th className="pb-2">User ID</th>

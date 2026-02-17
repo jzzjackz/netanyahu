@@ -15,25 +15,38 @@ import type { Channel, DirectMessage, Profile } from "../lib/types";
 
 export default function AppShell() {
   const supabase = createSupabaseBrowserClient();
-  const { currentServerId, currentChannelId, currentConversationId } = useAppStore();
+  const { currentServerId, currentChannelId, currentConversationId, setConversation, setServer, setChannel } = useAppStore();
   const [voiceChannel, setVoiceChannel] = useState<Channel | null>(null);
   const [voiceChannelKey, setVoiceChannelKey] = useState(0);
-  const [notification, setNotification] = useState<{ sender: string; message: string; conversationId: string } | null>(null);
+  const [notification, setNotification] = useState<{ 
+    sender: string; 
+    message: string; 
+    conversationId?: string;
+    serverId?: string;
+    channelId?: string;
+  } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   
   // Use ref to track current conversation without causing re-subscriptions
   const currentConversationIdRef = useRef(currentConversationId);
+  const currentChannelIdRef = useRef(currentChannelId);
   
   useEffect(() => {
     currentConversationIdRef.current = currentConversationId;
+    currentChannelIdRef.current = currentChannelId;
     
-    // Auto-dismiss notification if user switches to that conversation
-    if (notification && notification.conversationId === currentConversationId) {
-      console.log("Auto-dismissing notification - user switched to conversation");
-      setNotification(null);
+    // Auto-dismiss notification if user switches to that conversation or channel
+    if (notification) {
+      if (notification.conversationId && notification.conversationId === currentConversationId) {
+        console.log("Auto-dismissing notification - user switched to conversation");
+        setNotification(null);
+      } else if (notification.channelId && notification.channelId === currentChannelId) {
+        console.log("Auto-dismissing notification - user switched to channel");
+        setNotification(null);
+      }
     }
-  }, [currentConversationId, notification]);
+  }, [currentConversationId, currentChannelId, notification]);
 
   // Get current user ID and set status to online
   useEffect(() => {
@@ -194,6 +207,120 @@ export default function AppShell() {
     };
   }, [userId, supabase]); // Removed currentConversationId from dependencies
 
+  // Server message notifications
+  useEffect(() => {
+    if (!userId) return;
+
+    console.log("🔔 Setting up server message notification listener for user:", userId);
+
+    let channels: ReturnType<typeof supabase.channel>[] = [];
+    let isMounted = true;
+
+    const setupListeners = async () => {
+      // Get all servers the user is a member of
+      const { data: memberships } = await supabase
+        .from("server_members")
+        .select("server_id")
+        .eq("user_id", userId);
+
+      if (!isMounted || !memberships || memberships.length === 0) return;
+
+      const serverIds = memberships.map(m => m.server_id);
+      console.log(`Found ${serverIds.length} servers, setting up message listeners...`);
+
+      // Get all channels in those servers
+      const { data: serverChannels } = await supabase
+        .from("channels")
+        .select("id, name, server_id")
+        .in("server_id", serverIds)
+        .eq("type", "text");
+
+      if (!isMounted || !serverChannels) return;
+
+      // Subscribe to each channel
+      channels = serverChannels.map((channel) => {
+        const ch = supabase
+          .channel(`server_msg_notif_${channel.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "messages",
+              filter: `channel_id=eq.${channel.id}`,
+            },
+            async (payload) => {
+              if (!isMounted) return;
+              
+              const newMessage = payload.new as any;
+
+              // Only show notification if:
+              // 1. Message is not from current user
+              // 2. User is not currently viewing this channel
+              // 3. User is mentioned OR it's a general notification
+              if (
+                newMessage.author_id !== userId &&
+                newMessage.channel_id !== currentChannelIdRef.current
+              ) {
+                // Get sender profile
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("username")
+                  .eq("id", newMessage.author_id)
+                  .single();
+
+                const senderName = profile?.username || "Someone";
+                const messageText = newMessage.content || "Sent an attachment";
+
+                // Show notification
+                setNotification({
+                  sender: senderName,
+                  message: `#${channel.name}: ${messageText}`,
+                  serverId: channel.server_id,
+                  channelId: channel.id,
+                });
+
+                // Show browser notification
+                if (
+                  typeof window !== "undefined" &&
+                  "Notification" in window &&
+                  Notification.permission === "granted"
+                ) {
+                  const browserNotif = new Notification(
+                    `${senderName} in #${channel.name}`,
+                    {
+                      body: messageText,
+                      icon: "/favicon.ico",
+                      tag: channel.id,
+                      requireInteraction: false,
+                    }
+                  );
+
+                  setTimeout(() => browserNotif.close(), 5000);
+
+                  browserNotif.onclick = () => {
+                    window.focus();
+                    browserNotif.close();
+                  };
+                }
+              }
+            }
+          )
+          .subscribe();
+
+        return ch;
+      });
+    };
+
+    setupListeners();
+
+    return () => {
+      console.log("🔕 Cleaning up server message notification listeners");
+      isMounted = false;
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [userId, supabase]);
+
   useEffect(() => {
     if (!currentChannelId) {
       setVoiceChannel(null);
@@ -231,6 +358,14 @@ export default function AppShell() {
           senderUsername={notification.sender}
           message={notification.message}
           onClose={() => setNotification(null)}
+          onClick={() => {
+            if (notification.conversationId) {
+              setConversation(notification.conversationId);
+            } else if (notification.serverId && notification.channelId) {
+              setServer(notification.serverId);
+              setChannel(notification.channelId);
+            }
+          }}
         />
       )}
       
