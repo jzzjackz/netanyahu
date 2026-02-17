@@ -72,6 +72,9 @@ export default function PrivateCall({ conversationId, otherUsername, onLeave }: 
           }
         };
 
+        // Queue for ICE candidates received before remote description
+        const iceCandidateQueue: RTCIceCandidate[] = [];
+
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
           if (event.candidate && channelRef.current) {
@@ -93,28 +96,65 @@ export default function PrivateCall({ conversationId, otherUsername, onLeave }: 
         channel
           .on("broadcast", { event: "offer" }, async ({ payload }) => {
             if (payload.to === userId) {
-              await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              channel.send({
-                type: "broadcast",
-                event: "answer",
-                payload: {
-                  answer,
-                  from: userId,
-                  to: payload.from,
-                },
-              });
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+                
+                // Process queued ICE candidates
+                while (iceCandidateQueue.length > 0) {
+                  const candidate = iceCandidateQueue.shift();
+                  if (candidate) {
+                    await pc.addIceCandidate(candidate);
+                  }
+                }
+                
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                channel.send({
+                  type: "broadcast",
+                  event: "answer",
+                  payload: {
+                    answer,
+                    from: userId,
+                    to: payload.from,
+                  },
+                });
+              } catch (error) {
+                console.error("Error handling offer:", error);
+              }
             }
           })
           .on("broadcast", { event: "answer" }, async ({ payload }) => {
             if (payload.to === userId) {
-              await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                
+                // Process queued ICE candidates
+                while (iceCandidateQueue.length > 0) {
+                  const candidate = iceCandidateQueue.shift();
+                  if (candidate) {
+                    await pc.addIceCandidate(candidate);
+                  }
+                }
+              } catch (error) {
+                console.error("Error handling answer:", error);
+              }
             }
           })
           .on("broadcast", { event: "ice_candidate" }, async ({ payload }) => {
             if (payload.from !== userId && payload.candidate) {
-              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+              try {
+                const candidate = new RTCIceCandidate(payload.candidate);
+                
+                // If remote description is set, add candidate immediately
+                if (pc.remoteDescription) {
+                  await pc.addIceCandidate(candidate);
+                } else {
+                  // Otherwise, queue it
+                  iceCandidateQueue.push(candidate);
+                }
+              } catch (error) {
+                console.error("Error adding ICE candidate:", error);
+              }
             }
           })
           .on("broadcast", { event: "video_toggle" }, ({ payload }) => {
