@@ -15,23 +15,12 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  /* Prevent zoom on mobile */
-  touch-action: manipulation;
 }
 
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevent pull-to-refresh on mobile */
-  overscroll-behavior-y: none;
-}
-
-/* Mobile viewport fix */
-@supports (-webkit-touch-callout: none) {
-  body {
-    min-height: -webkit-fill-available;
-  }
 }
 
 /* Custom scrollbar */
@@ -68,11 +57,4 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* Mobile-friendly tap targets */
-@media (max-width: 768px) {
-  button,
-  a {
-    min-height: 44px;
-    min-width: 44px;
-  }
-}
+

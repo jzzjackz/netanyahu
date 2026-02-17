@@ -229,43 +229,10 @@ export default function AppShell() {
         />
       )}
       
-      {/* Mobile Menu Button */}
-      {isMobile && (
-        <button
-          onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="fixed left-4 top-4 z-40 rounded-lg bg-[#5865f2] p-2 md:hidden"
-        >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
-      )}
-      
-      {/* Mobile Overlay */}
-      {isMobile && showMobileMenu && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
-          onClick={() => setShowMobileMenu(false)}
-        />
-      )}
-      
-      {/* Server Sidebar */}
-      <div className={`${isMobile ? 'fixed inset-y-0 left-0 z-40 md:relative' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full md:translate-x-0' : ''} transition-transform`}>
-        <ServerSidebar />
-      </div>
-      
-      {/* Channel Sidebar */}
-      <div className={`${isMobile ? 'fixed inset-y-0 left-[72px] z-40 md:relative md:left-0' : ''} ${isMobile && !showMobileMenu ? '-translate-x-full md:translate-x-0' : ''} transition-transform`}>
-        <ChannelSidebar />
-      </div>
-      
-      {/* Main Content */}
+      <ServerSidebar />
+      <ChannelSidebar />
       <ChatArea />
-      
-      {/* Member List / Friends Panel - Hidden on small screens */}
-      <div className="hidden lg:block">
-        {currentServerId ? <MemberList /> : <FriendsPanel />}
-      </div>
+      {currentServerId ? <MemberList /> : <FriendsPanel />}
       
       {voiceChannel && (
         <VoiceCall
