@@ -31,6 +31,15 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to adjust color brightness
+  const adjustColor = (color: string, amount: number) => {
+    const hex = color.replace('#', '');
+    const r = Math.max(0, Math.min(255, parseInt(hex.slice(0, 2), 16) + amount));
+    const g = Math.max(0, Math.min(255, parseInt(hex.slice(2, 4), 16) + amount));
+    const b = Math.max(0, Math.min(255, parseInt(hex.slice(4, 6), 16) + amount));
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -261,7 +270,14 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
       <div className="w-full max-w-2xl rounded-lg bg-[#313338] shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Banner */}
-        <div className="relative h-32 overflow-hidden rounded-t-lg bg-gradient-to-r from-indigo-500 to-purple-600">
+        <div 
+          className="relative h-32 overflow-hidden rounded-t-lg"
+          style={{ 
+            background: profile.banner_url 
+              ? 'transparent' 
+              : `linear-gradient(to right, ${(profile as any).profile_color || '#5865f2'}, ${adjustColor((profile as any).profile_color || '#5865f2', -30)})`
+          }}
+        >
           {profile.banner_url && (
             <img src={profile.banner_url} alt="Banner" className="h-full w-full object-cover" />
           )}
@@ -323,7 +339,15 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         <div className="p-6 pt-4">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">{profile.username}</h2>
+              <h2 className="text-2xl font-bold" style={{ color: (profile as any).profile_color || '#ffffff' }}>
+                {(profile as any).display_name || profile.username}
+              </h2>
+              {(profile as any).display_name && (
+                <p className="text-sm text-gray-400">@{profile.username}</p>
+              )}
+              {(profile as any).pronouns && (
+                <p className="text-xs text-gray-500">{(profile as any).pronouns}</p>
+              )}
               {profile.custom_status && (
                 <p className="text-sm text-gray-400">{profile.custom_status}</p>
               )}
