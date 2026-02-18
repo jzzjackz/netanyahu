@@ -159,7 +159,7 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
 
     setUsernameError("");
 
-    await supabase
+    const { error } = await supabase
       .from("profiles")
       .update({
         username: username.trim(),
@@ -171,6 +171,12 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         display_name: displayName.trim() || null,
       })
       .eq("id", currentUserId);
+
+    if (error) {
+      console.error("Error saving profile:", error);
+      alert("Failed to save profile: " + error.message);
+      return;
+    }
 
     setProfile(prev => prev ? { 
       ...prev, 
