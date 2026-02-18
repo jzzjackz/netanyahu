@@ -18,15 +18,15 @@ export default function AnnouncementBanner() {
   useEffect(() => {
     // Load latest announcement
     const loadLatest = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("announcements")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (data && !dismissed.has(data.id)) {
-        setAnnouncement(data as Announcement);
+      // Check if we got data (array with at least one item)
+      if (data && data.length > 0 && !dismissed.has(data[0].id)) {
+        setAnnouncement(data[0] as Announcement);
       }
     };
 

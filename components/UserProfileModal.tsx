@@ -17,7 +17,14 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const [bio, setBio] = useState("");
   const [customStatus, setCustomStatus] = useState("");
   const [status, setStatus] = useState<UserStatus>("online");
+  const [username, setUsername] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportContext, setReportContext] = useState("");
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,6 +45,19 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         setBio(prof.bio || "");
         setCustomStatus(prof.custom_status || "");
         setStatus(prof.status);
+        setUsername(prof.username);
+      }
+
+      // Check if user is blocked
+      if (user) {
+        const { data: blockData } = await supabase
+          .from("user_blocks")
+          .select("id")
+          .eq("blocker_id", user.id)
+          .eq("blocked_id", userId)
+          .maybeSingle();
+        
+        setIsBlocked(!!blockData);
       }
     };
     load();
@@ -100,16 +120,50 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const handleSave = async () => {
     if (!currentUserId) return;
 
+    // Validate username
+    if (username.trim().length < 3) {
+      setUsernameError("Username must be at least 3 characters");
+      return;
+    }
+
+    if (username.trim().length > 32) {
+      setUsernameError("Username must be less than 32 characters");
+      return;
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(username.trim())) {
+      setUsernameError("Username can only contain letters, numbers, underscores, and hyphens");
+      return;
+    }
+
+    // Check if username is taken (if changed)
+    if (username.trim() !== profile?.username) {
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("username", username.trim())
+        .neq("id", currentUserId)
+        .maybeSingle();
+
+      if (existing) {
+        setUsernameError("Username is already taken");
+        return;
+      }
+    }
+
+    setUsernameError("");
+
     await supabase
       .from("profiles")
       .update({
+        username: username.trim(),
         bio,
         custom_status: customStatus,
         status,
       })
       .eq("id", currentUserId);
 
-    setProfile(prev => prev ? { ...prev, bio, custom_status: customStatus, status } : null);
+    setProfile(prev => prev ? { ...prev, username: username.trim(), bio, custom_status: customStatus, status } : null);
     setIsEditing(false);
   };
 
@@ -129,6 +183,50 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
       case "dnd": return "Do Not Disturb";
       case "invisible": return "Invisible";
     }
+  };
+
+  const handleBlockUser = async () => {
+    if (!currentUserId || currentUserId === userId) return;
+
+    if (isBlocked) {
+      // Unblock
+      await supabase
+        .from("user_blocks")
+        .delete()
+        .eq("blocker_id", currentUserId)
+        .eq("blocked_id", userId);
+      setIsBlocked(false);
+    } else {
+      // Block
+      await supabase
+        .from("user_blocks")
+        .insert({
+          blocker_id: currentUserId,
+          blocked_id: userId,
+        });
+      setIsBlocked(true);
+    }
+  };
+
+  const handleSubmitReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUserId || !reportReason.trim()) return;
+
+    setSubmittingReport(true);
+    await supabase
+      .from("user_reports")
+      .insert({
+        reporter_id: currentUserId,
+        reported_id: userId,
+        reason: reportReason,
+        context: reportContext || null,
+      });
+
+    setSubmittingReport(false);
+    setShowReportModal(false);
+    setReportReason("");
+    setReportContext("");
+    alert("Report submitted. Our team will review it.");
   };
 
   if (!profile) return null;
@@ -219,6 +317,22 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
           {isEditing ? (
             <div className="space-y-4">
               <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setUsernameError("");
+                  }}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 outline-none"
+                  placeholder="Enter username"
+                />
+                {usernameError && (
+                  <p className="mt-1 text-sm text-red-400">{usernameError}</p>
+                )}
+              </div>
+              <div>
                 <label className="mb-1 block text-sm font-medium text-gray-400">Status</label>
                 <select
                   value={status}
@@ -278,6 +392,28 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                 <h3 className="mb-2 text-sm font-semibold uppercase text-gray-400">Member Since</h3>
                 <p className="text-gray-300">{new Date(profile.created_at).toLocaleDateString()}</p>
               </div>
+
+              {/* Block and Report buttons (only for other users) */}
+              {!isOwnProfile && (
+                <div className="flex gap-2 border-t border-[#404249] pt-4">
+                  <button
+                    onClick={handleBlockUser}
+                    className={`flex-1 rounded px-4 py-2 text-sm font-medium ${
+                      isBlocked
+                        ? "bg-gray-600 hover:bg-gray-500"
+                        : "bg-red-600 hover:bg-red-500"
+                    }`}
+                  >
+                    {isBlocked ? "Unblock User" : "Block User"}
+                  </button>
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="flex-1 rounded bg-orange-600 px-4 py-2 text-sm font-medium hover:bg-orange-500"
+                  >
+                    Report User
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -292,6 +428,63 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
           </svg>
         </button>
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowReportModal(false)}>
+          <div className="w-full max-w-md rounded-lg bg-[#313338] p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-xl font-bold">Report User</h2>
+            <form onSubmit={handleSubmitReport} className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-300">
+                  Reason for report
+                </label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none"
+                  required
+                >
+                  <option value="">Select a reason...</option>
+                  <option value="harassment">Harassment or bullying</option>
+                  <option value="spam">Spam or scam</option>
+                  <option value="inappropriate">Inappropriate content</option>
+                  <option value="impersonation">Impersonation</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-300">
+                  Additional details (optional)
+                </label>
+                <textarea
+                  value={reportContext}
+                  onChange={(e) => setReportContext(e.target.value)}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none"
+                  rows={4}
+                  placeholder="Provide any additional context..."
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(false)}
+                  className="rounded px-4 py-2 text-sm hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReport || !reportReason}
+                  className="rounded bg-orange-600 px-4 py-2 text-sm font-medium hover:bg-orange-500 disabled:opacity-50"
+                >
+                  {submittingReport ? "Submitting..." : "Submit Report"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
