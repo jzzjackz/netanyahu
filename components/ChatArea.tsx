@@ -586,7 +586,7 @@ export default function ChatArea() {
         )}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
+      <form onSubmit={handleSend} className="relative border-t border-[#1e1f22] p-4">
         {replyingTo && (
           <div className="mb-2 flex items-center gap-2 rounded bg-[#2b2d31] px-3 py-2 text-sm">
             <span className="text-gray-400">Replying to {replyingTo.profiles?.username || "Unknown"}</span>
@@ -1156,7 +1156,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
           })}
           <div ref={messagesEndRef} />
         </div>
-        <form onSubmit={handleSend} className="border-t border-[#1e1f22] p-4">
+        <form onSubmit={handleSend} className="relative border-t border-[#1e1f22] p-4">
           {selectedFiles.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
               {selectedFiles.map((file, idx) => (
