@@ -108,14 +108,20 @@ export default function AdminPanel() {
     const { data: reportData } = await supabase
       .from("user_reports")
       .select(`
-        *,
-        reporter:reporter_id(username),
-        reported:reported_id(username)
+        id,
+        reporter_id,
+        reported_id,
+        reason,
+        context,
+        status,
+        created_at,
+        reporter:profiles!user_reports_reporter_id_fkey(username),
+        reported:profiles!user_reports_reported_id_fkey(username)
       `)
       .order("created_at", { ascending: false });
     
     if (reportData) {
-      setReports(reportData as Report[]);
+      setReports(reportData as any);
     }
   };
 

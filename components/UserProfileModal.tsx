@@ -18,6 +18,9 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
   const [customStatus, setCustomStatus] = useState("");
   const [status, setStatus] = useState<UserStatus>("online");
   const [username, setUsername] = useState("");
+  const [pronouns, setPronouns] = useState("");
+  const [profileColor, setProfileColor] = useState("#5865f2");
+  const [displayName, setDisplayName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -46,6 +49,9 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         setCustomStatus(prof.custom_status || "");
         setStatus(prof.status);
         setUsername(prof.username);
+        setPronouns((prof as any).pronouns || "");
+        setProfileColor((prof as any).profile_color || "#5865f2");
+        setDisplayName((prof as any).display_name || "");
       }
 
       // Check if user is blocked
@@ -160,10 +166,22 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         bio,
         custom_status: customStatus,
         status,
+        pronouns: pronouns.trim() || null,
+        profile_color: profileColor,
+        display_name: displayName.trim() || null,
       })
       .eq("id", currentUserId);
 
-    setProfile(prev => prev ? { ...prev, username: username.trim(), bio, custom_status: customStatus, status } : null);
+    setProfile(prev => prev ? { 
+      ...prev, 
+      username: username.trim(), 
+      bio, 
+      custom_status: customStatus, 
+      status,
+      pronouns: pronouns.trim() || null,
+      profile_color: profileColor,
+      display_name: displayName.trim() || null,
+    } as any : null);
     setIsEditing(false);
   };
 
@@ -359,6 +377,52 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
               </div>
 
               <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Display Name (optional)</label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your display name"
+                  maxLength={32}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">This will be shown instead of your username</p>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Pronouns (optional)</label>
+                <input
+                  type="text"
+                  value={pronouns}
+                  onChange={(e) => setPronouns(e.target.value)}
+                  placeholder="e.g. he/him, she/her, they/them"
+                  maxLength={50}
+                  className="w-full rounded bg-[#1e1f22] px-3 py-2 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-400">Profile Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={profileColor}
+                    onChange={(e) => setProfileColor(e.target.value)}
+                    className="h-10 w-20 cursor-pointer rounded border-2 border-[#404249]"
+                  />
+                  <input
+                    type="text"
+                    value={profileColor}
+                    onChange={(e) => setProfileColor(e.target.value)}
+                    placeholder="#5865f2"
+                    maxLength={7}
+                    className="flex-1 rounded bg-[#1e1f22] px-3 py-2 font-mono text-sm outline-none"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">This color will be used for your profile accents</p>
+              </div>
+
+              <div>
                 <label className="mb-1 block text-sm font-medium text-gray-400">Bio</label>
                 <textarea
                   value={bio}
@@ -380,6 +444,18 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                   <span>{getStatusLabel(profile.status)}</span>
                 </div>
               </div>
+
+              {((profile as any).pronouns || (profile as any).display_name) && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold uppercase text-gray-400">Profile</h3>
+                  {(profile as any).display_name && (
+                    <p className="text-gray-300">Display Name: {(profile as any).display_name}</p>
+                  )}
+                  {(profile as any).pronouns && (
+                    <p className="text-gray-300">Pronouns: {(profile as any).pronouns}</p>
+                  )}
+                </div>
+              )}
 
               {profile.bio && (
                 <div>

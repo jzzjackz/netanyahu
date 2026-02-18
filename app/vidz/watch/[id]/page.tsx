@@ -233,15 +233,19 @@ export default function WatchVideo() {
               
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500 text-sm font-bold">
-                      {(video.profiles?.username ?? "?").slice(0, 1).toUpperCase()}
+                  <Link href={`/vidz/channel/${video.uploader_id}`} className="flex items-center gap-3 hover:opacity-80">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500 text-sm font-bold overflow-hidden">
+                      {video.profiles?.avatar_url ? (
+                        <img src={video.profiles.avatar_url} alt={video.profiles.username} className="h-full w-full object-cover" />
+                      ) : (
+                        (video.profiles?.username ?? "?").slice(0, 1).toUpperCase()
+                      )}
                     </div>
                     <div>
-                      <p className="font-medium">{video.profiles?.username}</p>
+                      <p className="font-medium hover:underline">{video.profiles?.username}</p>
                       <p className="text-sm text-gray-400">{video.views} views</p>
                     </div>
-                  </div>
+                  </Link>
                   {video.uploader_id !== userId && (
                     <button
                       onClick={handleSubscribe}
