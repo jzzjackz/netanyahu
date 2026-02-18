@@ -105,23 +105,35 @@ export default function AdminPanel() {
     }
 
     // Load reports
-    const { data: reportData } = await supabase
+    const { data: reportData, error: reportError } = await supabase
       .from("user_reports")
-      .select(`
-        id,
-        reporter_id,
-        reported_id,
-        reason,
-        context,
-        status,
-        created_at,
-        reporter:profiles!user_reports_reporter_id_fkey(username),
-        reported:profiles!user_reports_reported_id_fkey(username)
-      `)
+      .select("*")
       .order("created_at", { ascending: false });
     
-    if (reportData) {
-      setReports(reportData as any);
+    if (reportData && reportData.length > 0) {
+      // Get unique user IDs
+      const reporterIds = [...new Set(reportData.map((r: any) => r.reporter_id))];
+      const reportedIds = [...new Set(reportData.map((r: any) => r.reported_id))];
+      const allUserIds = [...new Set([...reporterIds, ...reportedIds])];
+      
+      // Fetch profiles
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .in("id", allUserIds);
+      
+      const profileMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+      
+      // Map reports with usernames
+      const reportsWithUsers = reportData.map((r: any) => ({
+        ...r,
+        reporter: profileMap.get(r.reporter_id),
+        reported: profileMap.get(r.reported_id),
+      }));
+      
+      setReports(reportsWithUsers as any);
+    } else {
+      setReports([]);
     }
   };
 
