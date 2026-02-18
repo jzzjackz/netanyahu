@@ -10,6 +10,8 @@ export default function MemberList() {
   const supabase = createSupabaseBrowserClient();
   const { currentServerId } = useAppStore();
   const [members, setMembers] = useState<ServerMember[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [userRoles, setUserRoles] = useState<Map<string, any[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -18,6 +20,7 @@ export default function MemberList() {
   const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
   const [profileModalUserId, setProfileModalUserId] = useState<string | null>(null);
   const [editingOwnProfile, setEditingOwnProfile] = useState(false);
+  const [showRoleMenu, setShowRoleMenu] = useState(false);
 
   const getStatusColor = (status: UserStatus) => {
     switch (status) {
@@ -54,6 +57,29 @@ export default function MemberList() {
     if (!currentServerId) return;
     (async () => {
       setLoading(true);
+      
+      // Load roles
+      const { data: rolesData } = await supabase
+        .from("server_roles")
+        .select("*")
+        .eq("server_id", currentServerId)
+        .order("position", { ascending: false });
+      
+      setRoles(rolesData || []);
+      
+      // Load user role assignments
+      const { data: userRolesData } = await supabase
+        .from("user_roles")
+        .select("user_id, role_id, server_roles(*)")
+        .in("role_id", (rolesData || []).map((r: any) => r.id));
+      
+      const roleMap = new Map<string, any[]>();
+      (userRolesData || []).forEach((ur: any) => {
+        const existing = roleMap.get(ur.user_id) || [];
+        roleMap.set(ur.user_id, [...existing, ur.server_roles]);
+      });
+      setUserRoles(roleMap);
+      
       const { data: rows } = await supabase.from("server_members").select("*").eq("server_id", currentServerId);
       const membersList = (rows as ServerMember[]) ?? [];
       if (membersList.length === 0) {
@@ -162,6 +188,36 @@ export default function MemberList() {
     setContextMember(null);
   };
 
+  const handleToggleRole = async (memberId: string, roleId: string) => {
+    const memberRoles = userRoles.get(memberId) || [];
+    const hasRole = memberRoles.some((r: any) => r.id === roleId);
+
+    if (hasRole) {
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", memberId)
+        .eq("role_id", roleId);
+    } else {
+      await supabase
+        .from("user_roles")
+        .insert({ user_id: memberId, role_id: roleId });
+    }
+
+    // Reload roles
+    const { data: userRolesData } = await supabase
+      .from("user_roles")
+      .select("user_id, role_id, server_roles(*)")
+      .in("role_id", roles.map((r: any) => r.id));
+    
+    const roleMap = new Map<string, any[]>();
+    (userRolesData || []).forEach((ur: any) => {
+      const existing = roleMap.get(ur.user_id) || [];
+      roleMap.set(ur.user_id, [...existing, ur.server_roles]);
+    });
+    setUserRoles(roleMap);
+  };
+
   if (!currentServerId) return null;
   if (loading) {
     return (
@@ -180,6 +236,9 @@ export default function MemberList() {
       <div className="flex-1 overflow-y-auto p-2">
         {members.map((m) => {
           const isCurrentUser = m.user_id === userId;
+          const memberRoles = userRoles.get(m.user_id) || [];
+          const highestRole = memberRoles.sort((a: any, b: any) => b.position - a.position)[0];
+          
           return (
           <div 
             key={m.user_id} 
@@ -211,13 +270,20 @@ export default function MemberList() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setProfileModalUserId(m.user_id)}
-                  className="truncate text-sm font-medium text-gray-200 hover:underline"
+                  className="truncate text-sm font-medium hover:underline"
+                  style={{ color: highestRole?.color || '#dcddde' }}
                 >
                   {m.profiles?.username ?? `User-${m.user_id.slice(-6)}`}
                 </button>
                 {m.role === "owner" && <span className="text-xs">👑</span>}
               </div>
               <div className="flex items-center gap-1 text-xs text-gray-500">
+                {memberRoles.length > 0 && (
+                  <>
+                    <span style={{ color: highestRole?.color }}>{highestRole?.name}</span>
+                    <span>•</span>
+                  </>
+                )}
                 <span>{getStatusLabel(m.profiles?.status || 'online')}</span>
                 {m.profiles?.custom_status && (
                   <>
@@ -245,32 +311,75 @@ export default function MemberList() {
       </div>
       {contextMember && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setContextMember(null)} aria-hidden />
+          <div className="fixed inset-0 z-40" onClick={() => { setContextMember(null); setShowRoleMenu(false); }} aria-hidden />
           <div
             className="fixed z-50 rounded bg-[#313338] py-1 shadow-xl"
             style={{ left: contextPos.x, top: contextPos.y }}
           >
-            <button
-              type="button"
-              onClick={() => handleKick(contextMember)}
-              className="w-full px-4 py-2 text-left text-sm text-orange-400 hover:bg-white/10"
-            >
-              Kick {contextMember.profiles?.username}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleBan(contextMember)}
-              className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/10"
-            >
-              Ban {contextMember.profiles?.username}
-            </button>
-            <button
-              type="button"
-              onClick={() => setContextMember(null)}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-white/10"
-            >
-              Cancel
-            </button>
+            {!showRoleMenu ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowRoleMenu(true)}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-white/10"
+                >
+                  Manage Roles
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleKick(contextMember)}
+                  className="w-full px-4 py-2 text-left text-sm text-orange-400 hover:bg-white/10"
+                >
+                  Kick {contextMember.profiles?.username}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBan(contextMember)}
+                  className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/10"
+                >
+                  Ban {contextMember.profiles?.username}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContextMember(null)}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="px-4 py-2 text-xs font-semibold uppercase text-gray-400">
+                  Assign Roles
+                </div>
+                {roles.filter((r: any) => r.name !== "@everyone").map((role: any) => {
+                  const memberRoles = userRoles.get(contextMember.user_id) || [];
+                  const hasRole = memberRoles.some((r: any) => r.id === role.id);
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => handleToggleRole(contextMember.user_id, role.id)}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm hover:bg-white/10"
+                    >
+                      <div
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: role.color }}
+                      />
+                      <span>{role.name}</span>
+                      {hasRole && <span className="ml-auto text-green-400">✓</span>}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setShowRoleMenu(false)}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-400 hover:bg-white/10"
+                >
+                  ← Back
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
