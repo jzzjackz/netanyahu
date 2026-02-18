@@ -32,22 +32,30 @@ export default function AnnouncementBanner() {
 
     loadLatest();
 
-    // Subscribe to new announcements
+    // Subscribe to new announcements with unique channel name
     const channel = supabase
-      .channel("announcements")
+      .channel(`announcements_${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "announcements" },
+        { 
+          event: "INSERT", 
+          schema: "public", 
+          table: "announcements" 
+        },
         (payload) => {
+          console.log("📢 New announcement received:", payload);
           const newAnnouncement = payload.new as Announcement;
           if (!dismissed.has(newAnnouncement.id)) {
             setAnnouncement(newAnnouncement);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Announcements subscription status:", status);
+      });
 
     return () => {
+      console.log("🔕 Cleaning up announcements subscription");
       supabase.removeChannel(channel);
     };
   }, [supabase, dismissed]);
