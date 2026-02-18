@@ -138,6 +138,18 @@ export default function AdminPanel() {
   };
 
   const handleBanUser = async (userId: string) => {
+    // Check if user is already banned
+    const { data: existingBan } = await supabase
+      .from("platform_bans")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingBan) {
+      alert("User is already banned");
+      return;
+    }
+
     const reason = prompt("Ban reason:");
     if (!reason) return;
 
