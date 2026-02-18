@@ -273,13 +273,11 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         <div 
           className="relative h-32 overflow-hidden rounded-t-lg"
           style={{ 
-            background: profile.banner_url 
-              ? 'transparent' 
-              : `linear-gradient(to right, ${(profile as any).profile_color || '#5865f2'}, ${adjustColor((profile as any).profile_color || '#5865f2', -30)})`
+            background: `linear-gradient(to right, ${(profile as any).profile_color || '#5865f2'}, ${adjustColor((profile as any).profile_color || '#5865f2', -30)})`
           }}
         >
           {profile.banner_url && (
-            <img src={profile.banner_url} alt="Banner" className="h-full w-full object-cover" />
+            <img src={profile.banner_url} alt="Banner" className="h-full w-full object-cover opacity-80" />
           )}
           {isOwnProfile && isEditing && (
             <>
