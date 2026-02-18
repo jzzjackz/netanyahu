@@ -46,7 +46,7 @@ CREATE POLICY "Anyone can view roles in their servers"
     )
   );
 
-CREATE POLICY "Server owners and users with manage_roles can create roles"
+CREATE POLICY "Server owners can create roles"
   ON server_roles FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -54,16 +54,9 @@ CREATE POLICY "Server owners and users with manage_roles can create roles"
       WHERE servers.id = server_roles.server_id
       AND servers.owner_id = auth.uid()
     )
-    OR EXISTS (
-      SELECT 1 FROM user_roles ur
-      JOIN server_roles sr ON ur.role_id = sr.id
-      WHERE ur.user_id = auth.uid()
-      AND sr.server_id = server_roles.server_id
-      AND sr.manage_roles = true
-    )
   );
 
-CREATE POLICY "Server owners and users with manage_roles can update roles"
+CREATE POLICY "Server owners can update roles"
   ON server_roles FOR UPDATE
   USING (
     EXISTS (
@@ -71,29 +64,15 @@ CREATE POLICY "Server owners and users with manage_roles can update roles"
       WHERE servers.id = server_roles.server_id
       AND servers.owner_id = auth.uid()
     )
-    OR EXISTS (
-      SELECT 1 FROM user_roles ur
-      JOIN server_roles sr ON ur.role_id = sr.id
-      WHERE ur.user_id = auth.uid()
-      AND sr.server_id = server_roles.server_id
-      AND sr.manage_roles = true
-    )
   );
 
-CREATE POLICY "Server owners and users with manage_roles can delete roles"
+CREATE POLICY "Server owners can delete roles"
   ON server_roles FOR DELETE
   USING (
     EXISTS (
       SELECT 1 FROM servers
       WHERE servers.id = server_roles.server_id
       AND servers.owner_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1 FROM user_roles ur
-      JOIN server_roles sr ON ur.role_id = sr.id
-      WHERE ur.user_id = auth.uid()
-      AND sr.server_id = server_roles.server_id
-      AND sr.manage_roles = true
     )
   );
 
@@ -109,7 +88,7 @@ CREATE POLICY "Anyone can view role assignments in their servers"
     )
   );
 
-CREATE POLICY "Server owners and users with manage_roles can assign roles"
+CREATE POLICY "Server owners can assign roles"
   ON user_roles FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -118,17 +97,9 @@ CREATE POLICY "Server owners and users with manage_roles can assign roles"
       WHERE sr.id = user_roles.role_id
       AND s.owner_id = auth.uid()
     )
-    OR EXISTS (
-      SELECT 1 FROM server_roles sr
-      JOIN user_roles ur ON ur.role_id IN (
-        SELECT id FROM server_roles WHERE server_id = sr.server_id AND manage_roles = true
-      )
-      WHERE sr.id = user_roles.role_id
-      AND ur.user_id = auth.uid()
-    )
   );
 
-CREATE POLICY "Server owners and users with manage_roles can remove role assignments"
+CREATE POLICY "Server owners can remove role assignments"
   ON user_roles FOR DELETE
   USING (
     EXISTS (
@@ -136,14 +107,6 @@ CREATE POLICY "Server owners and users with manage_roles can remove role assignm
       JOIN servers s ON s.id = sr.server_id
       WHERE sr.id = user_roles.role_id
       AND s.owner_id = auth.uid()
-    )
-    OR EXISTS (
-      SELECT 1 FROM server_roles sr
-      JOIN user_roles ur ON ur.role_id IN (
-        SELECT id FROM server_roles WHERE server_id = sr.server_id AND manage_roles = true
-      )
-      WHERE sr.id = user_roles.role_id
-      AND ur.user_id = auth.uid()
     )
   );
 
