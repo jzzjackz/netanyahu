@@ -43,6 +43,34 @@ export async function createMentions(
 
   if (mentions.length > 0) {
     await supabase.from("mentions").insert(mentions);
+    
+    // Send browser notifications to mentioned users
+    const { data: authorProfile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", authorId)
+      .single();
+    
+    const { data: channelData } = await supabase
+      .from("channels")
+      .select("name, server_id")
+      .eq("id", channelId)
+      .single();
+    
+    // Broadcast mention notifications via realtime
+    for (const mention of mentions) {
+      await supabase.channel(`mentions:${mention.mentioned_user_id}`).send({
+        type: "broadcast",
+        event: "new_mention",
+        payload: {
+          sender: authorProfile?.username || "Someone",
+          message: content.slice(0, 100),
+          channelId,
+          serverId: channelData?.server_id,
+          channelName: channelData?.name,
+        },
+      });
+    }
   }
 }
 

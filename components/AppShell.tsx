@@ -321,6 +321,61 @@ export default function AppShell() {
     };
   }, [userId, supabase]);
 
+  // Mention notifications
+  useEffect(() => {
+    if (!userId) return;
+
+    console.log("🔔 Setting up mention notification listener for user:", userId);
+
+    const mentionChannel = supabase
+      .channel(`mentions:${userId}`)
+      .on("broadcast", { event: "new_mention" }, (payload: any) => {
+        console.log("📬 Received mention notification:", payload);
+        
+        const { sender, message, channelId, serverId, channelName } = payload.payload;
+        
+        // Don't show notification if user is viewing that channel
+        if (currentChannelIdRef.current === channelId) {
+          console.log("⏭️ Skipping mention notification - viewing channel");
+          return;
+        }
+        
+        setNotification({
+          sender,
+          message: `mentioned you: ${message}`,
+          channelId,
+          serverId,
+        });
+        
+        // Show browser notification
+        if (
+          typeof window !== "undefined" &&
+          "Notification" in window &&
+          Notification.permission === "granted"
+        ) {
+          const browserNotif = new Notification(`${sender} mentioned you in #${channelName}`, {
+            body: message,
+            icon: "/favicon.ico",
+            tag: channelId,
+            requireInteraction: false,
+          });
+          
+          setTimeout(() => browserNotif.close(), 5000);
+          
+          browserNotif.onclick = () => {
+            window.focus();
+            browserNotif.close();
+          };
+        }
+      })
+      .subscribe();
+
+    return () => {
+      console.log("🔕 Cleaning up mention notification listener");
+      supabase.removeChannel(mentionChannel);
+    };
+  }, [userId, supabase]);
+
   useEffect(() => {
     if (!currentChannelId) {
       setVoiceChannel(null);

@@ -31,10 +31,15 @@ export default function ChatArea() {
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [mentionSuggestions, setMentionSuggestions] = useState<Profile[]>([]);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [serverMembers, setServerMembers] = useState<Profile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -54,6 +59,7 @@ export default function ChatArea() {
     if (!currentChannelId) {
       setChannel(null);
       setMessages([]);
+      setServerMembers([]);
       setLoading(false);
       return;
     }
@@ -65,6 +71,23 @@ export default function ChatArea() {
       ]);
       const channelData = chRes.data as Channel | null;
       setChannel(channelData);
+      
+      // Load server members for mention autocomplete
+      if (channelData?.server_id) {
+        const { data: members } = await supabase
+          .from("server_members")
+          .select("user_id")
+          .eq("server_id", channelData.server_id);
+        
+        if (members && members.length > 0) {
+          const { data: profiles } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url")
+            .in("id", members.map((m: any) => m.user_id));
+          
+          setServerMembers((profiles as Profile[]) || []);
+        }
+      }
       
       // Don't load messages for voice channels
       if (channelData?.type === "voice") {
@@ -132,6 +155,77 @@ export default function ChatArea() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setContent(value);
+    handleTyping();
+    
+    // Check for @ mention
+    const cursorPos = e.target.selectionStart || 0;
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (match) {
+      const query = match[1].toLowerCase();
+      setMentionQuery(query);
+      
+      // Filter members by query
+      const filtered = serverMembers.filter((m) =>
+        m.username.toLowerCase().startsWith(query) && m.id !== userId
+      ).slice(0, 10);
+      
+      setMentionSuggestions(filtered);
+      setSelectedMentionIndex(0);
+    } else {
+      setMentionSuggestions([]);
+      setMentionQuery("");
+    }
+  };
+
+  const handleMentionSelect = (username: string) => {
+    const cursorPos = inputRef.current?.selectionStart || 0;
+    const textBeforeCursor = content.slice(0, cursorPos);
+    const textAfterCursor = content.slice(cursorPos);
+    
+    // Replace @query with @username
+    const newTextBefore = textBeforeCursor.replace(/@\w*$/, `@${username} `);
+    const newContent = newTextBefore + textAfterCursor;
+    
+    setContent(newContent);
+    setMentionSuggestions([]);
+    setMentionQuery("");
+    
+    // Focus back on input
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(newTextBefore.length, newTextBefore.length);
+      }
+    }, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (mentionSuggestions.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) =>
+          prev < mentionSuggestions.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedMentionIndex((prev) =>
+          prev > 0 ? prev - 1 : mentionSuggestions.length - 1
+        );
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        handleMentionSelect(mentionSuggestions[selectedMentionIndex].username);
+      } else if (e.key === "Escape") {
+        setMentionSuggestions([]);
+        setMentionQuery("");
+      }
+    }
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -552,9 +646,11 @@ export default function ChatArea() {
             <span className="text-lg">GIF</span>
           </button>
           <input
+            ref={inputRef}
             type="text"
             value={content}
-            onChange={(e) => { setContent(e.target.value); handleTyping(); }}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
             placeholder={`Message #${channel?.name ?? ""}`}
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
           />
@@ -566,6 +662,38 @@ export default function ChatArea() {
             {uploadingFiles ? "Uploading..." : "Send"}
           </button>
         </div>
+        {mentionSuggestions.length > 0 && (
+          <div className="absolute bottom-full left-0 mb-2 w-64 rounded-lg bg-[#2b2d31] shadow-xl">
+            <div className="p-2 text-xs font-semibold uppercase text-gray-400">
+              Mention
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {mentionSuggestions.map((member, index) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => handleMentionSelect(member.username)}
+                  className={`flex w-full items-center gap-2 px-2 py-1.5 text-left ${
+                    index === selectedMentionIndex ? "bg-[#5865f2]" : "hover:bg-[#404249]"
+                  }`}
+                >
+                  <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold">
+                    {member.avatar_url ? (
+                      <img
+                        src={member.avatar_url}
+                        alt={member.username}
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      member.username.slice(0, 1).toUpperCase()
+                    )}
+                  </div>
+                  <span className="text-sm">{member.username}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </form>
       {profileModalUserId && (
         <UserProfileModal
