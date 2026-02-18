@@ -10,6 +10,8 @@ interface User {
   email: string;
   created_at: string;
   is_admin: boolean;
+  is_banned?: boolean;
+  ban_id?: string;
 }
 
 interface Ban {
@@ -93,16 +95,20 @@ export default function AdminPanel() {
       .select("id, username, created_at, is_admin");
     
     if (profiles) {
-      // Get emails from auth.users
-      const userIds = profiles.map(p => p.id);
-      const usersWithEmail = await Promise.all(
-        profiles.map(async (profile) => {
-          return {
-            ...profile,
-            email: "N/A", // Email is in auth.users which we can't query directly
-          };
-        })
-      );
+      // Get ban status for all users
+      const { data: bansData } = await supabase
+        .from("platform_bans")
+        .select("id, user_id");
+      
+      const banMap = new Map((bansData || []).map((b: any) => [b.user_id, b.id]));
+      
+      const usersWithEmail = profiles.map((profile) => ({
+        ...profile,
+        email: "N/A",
+        is_banned: banMap.has(profile.id),
+        ban_id: banMap.get(profile.id),
+      }));
+      
       setUsers(usersWithEmail as User[]);
     }
 
@@ -150,18 +156,6 @@ export default function AdminPanel() {
   };
 
   const handleBanUser = async (userId: string) => {
-    // Check if user is already banned
-    const { data: existingBan } = await supabase
-      .from("platform_bans")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (existingBan) {
-      alert("User is already banned");
-      return;
-    }
-
     const reason = prompt("Ban reason:");
     if (!reason) return;
 
@@ -180,6 +174,20 @@ export default function AdminPanel() {
       alert("Failed to ban user: " + error.message);
     } else {
       alert("User banned successfully");
+      loadData();
+    }
+  };
+
+  const handleUnbanUserById = async (userId: string, banId: string) => {
+    const { error } = await supabase
+      .from("platform_bans")
+      .delete()
+      .eq("id", banId);
+
+    if (error) {
+      alert("Failed to unban user: " + error.message);
+    } else {
+      alert("User unbanned successfully");
       loadData();
     }
   };
@@ -523,7 +531,11 @@ export default function AdminPanel() {
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-3">
-                      {user.is_admin ? (
+                      {user.is_banned ? (
+                        <span className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400">
+                          Banned
+                        </span>
+                      ) : user.is_admin ? (
                         <span className="rounded bg-red-500/20 px-2 py-1 text-xs text-red-400">
                           Admin
                         </span>
@@ -535,12 +547,21 @@ export default function AdminPanel() {
                     </td>
                     <td className="py-3">
                       {!user.is_admin && (
-                        <button
-                          onClick={() => handleBanUser(user.id)}
-                          className="rounded bg-red-500 px-3 py-1 text-sm hover:bg-red-600"
-                        >
-                          Ban
-                        </button>
+                        user.is_banned ? (
+                          <button
+                            onClick={() => handleUnbanUserById(user.id, user.ban_id!)}
+                            className="rounded bg-green-500 px-3 py-1 text-sm hover:bg-green-600"
+                          >
+                            Unban
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleBanUser(user.id)}
+                            className="rounded bg-red-500 px-3 py-1 text-sm hover:bg-red-600"
+                          >
+                            Ban
+                          </button>
+                        )
                       )}
                     </td>
                   </tr>
