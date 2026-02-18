@@ -14,13 +14,25 @@ export default function VidzHome() {
   const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (!session) {
         router.push("/login?redirect=/vidz");
+        return;
+      }
+
+      // Check if user is banned
+      const { data: ban } = await supabase
+        .from("platform_bans")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      
+      if (ban) {
+        router.push("/banned");
       }
     });
-  }, [router, supabase.auth]);
+  }, [router, supabase]);
 
   useEffect(() => {
     if (!session) return;

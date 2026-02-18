@@ -27,6 +27,18 @@ export default function CommzPage() {
   useEffect(() => {
     if (!session?.user) return;
     const ensureProfile = async () => {
+      // Check if user is banned
+      const { data: ban } = await supabase
+        .from("platform_bans")
+        .select("id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      
+      if (ban) {
+        window.location.href = "/banned";
+        return;
+      }
+
       const { data: existing } = await supabase.from("profiles").select("id").eq("id", session.user.id).maybeSingle();
       if (!existing) {
         const username = session.user.email?.split("@")[0] ?? `user_${session.user.id.slice(0, 8)}`;

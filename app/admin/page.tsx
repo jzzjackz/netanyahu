@@ -54,6 +54,18 @@ export default function AdminPanel() {
         return;
       }
 
+      // Check if user is banned
+      const { data: ban } = await supabase
+        .from("platform_bans")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (ban) {
+        window.location.href = "/banned";
+        return;
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("is_admin")
