@@ -101,20 +101,23 @@ export default function ServerSidebar() {
       <button
         type="button"
         onClick={() => setServer(null)}
-        className={`flex h-12 w-12 items-center justify-center rounded-2xl transition hover:rounded-xl hover:bg-indigo-500 ${!currentServerId ? "rounded-xl bg-indigo-500" : "bg-[#313338]"}`}
+        className={`group relative flex h-12 w-12 items-center justify-center rounded-[24px] transition-all duration-200 hover:rounded-[16px] ${!currentServerId ? "rounded-[16px] bg-[#5865f2]" : "bg-[#313338] hover:bg-[#5865f2]"}`}
         title="Home"
       >
-        <span className="text-xl">⌂</span>
+        <span className="text-xl text-white">⌂</span>
+        {!currentServerId && (
+          <div className="absolute left-0 top-1/2 h-10 w-1 -translate-x-2 -translate-y-1/2 rounded-r bg-white" />
+        )}
       </button>
       <button
         type="button"
         onClick={() => window.location.href = "/discover"}
-        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] transition hover:rounded-xl hover:bg-green-500"
+        className="group relative flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] transition-all duration-200 hover:rounded-[16px] hover:bg-[#23a559]"
         title="Discover Servers"
       >
         <span className="text-xl">🔍</span>
       </button>
-      <div className="my-1 h-px w-8 bg-[#313338]" />
+      <div className="my-1 h-[2px] w-8 rounded bg-[#35363c]" />
       {servers.map((s) => (
         <button
           key={s.id}
@@ -127,20 +130,23 @@ export default function ServerSidebar() {
               setContextPos({ x: e.clientX, y: e.clientY });
             }
           }}
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] text-lg font-bold transition hover:rounded-xl hover:bg-indigo-500 ${currentServerId === s.id ? "rounded-xl bg-indigo-500" : ""}`}
+          className={`group relative flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] text-lg font-bold transition-all duration-200 hover:rounded-[16px] hover:bg-[#5865f2] ${currentServerId === s.id ? "rounded-[16px] bg-[#5865f2]" : ""}`}
           title={s.name}
         >
           {s.icon_url ? (
-            <img src={s.icon_url} alt="" className="h-full w-full rounded-2xl object-cover" />
+            <img src={s.icon_url} alt="" className="h-full w-full rounded-[24px] object-cover group-hover:rounded-[16px]" />
           ) : (
             (s.name[0] ?? "?").toUpperCase()
+          )}
+          {currentServerId === s.id && (
+            <div className="absolute left-0 top-1/2 h-10 w-1 -translate-x-2 -translate-y-1/2 rounded-r bg-white" />
           )}
         </button>
       ))}
       <button
         type="button"
         onClick={() => setCreateOpen(true)}
-        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] text-xl transition hover:rounded-xl hover:bg-green-600"
+        className="flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] text-xl transition-all duration-200 hover:rounded-[16px] hover:bg-[#23a559]"
         title="Add Server"
       >
         +

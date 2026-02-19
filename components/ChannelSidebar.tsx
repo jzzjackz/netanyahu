@@ -284,14 +284,14 @@ export default function ChannelSidebar() {
 
   return (
     <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
-      <div className="flex h-12 items-center justify-between border-b border-[#1e1f22] px-4 shadow-sm">
-        <h2 className="truncate font-semibold">{server?.name ?? "Server"}</h2>
+      <div className="flex h-12 items-center justify-between border-b border-black/20 px-4 shadow-sm">
+        <h2 className="truncate font-semibold text-white">{server?.name ?? "Server"}</h2>
         <div className="flex items-center gap-1">
           {server?.owner_id === userId && (
             <button
               type="button"
               onClick={() => window.location.href = `/server/${currentServerId}/settings`}
-              className="rounded p-1 text-gray-400 transition hover:bg-white/5 hover:text-white"
+              className="rounded p-1 text-[#b5bac1] transition hover:bg-[#35373c] hover:text-[#dbdee1]"
               title="Server Settings"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,10 +303,12 @@ export default function ChannelSidebar() {
           <button
             type="button"
             onClick={() => { setInviteOpen(true); setInviteLink(""); }}
-            className="rounded p-1 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            className="rounded p-1 text-[#b5bac1] transition hover:bg-[#35373c] hover:text-[#dbdee1]"
             title="Invite People"
           >
-            <span className="text-sm">🔗</span>
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
           </button>
         </div>
       </div>
@@ -324,20 +326,20 @@ export default function ChannelSidebar() {
         )}
         {textChannels.length > 0 && (
           <>
-            <div className="mt-2 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-gray-500">
-              <span>#</span> Text
+            <div className="mt-4 flex items-center justify-between px-2 text-xs font-semibold uppercase text-[#949ba4]">
+              <span>Text Channels</span>
             </div>
             {textChannels.map((c, idx) => (
               <div
                 key={c.id}
-                className={`group flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
+                className={`group mx-2 flex w-auto items-center gap-1 rounded px-2 py-1.5 text-left text-[15px] ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]"}`}
               >
                 <button
                   type="button"
                   onClick={() => setChannel(c.id)}
                   className="flex flex-1 items-center gap-2 min-w-0"
                 >
-                  <span className="text-gray-500">#</span>
+                  <span className="text-[#80848e]">#</span>
                   <span className="truncate">{c.name}</span>
                 </button>
                 {server?.owner_id === userId && (
@@ -385,8 +387,8 @@ export default function ChannelSidebar() {
         )}
         {voiceChannels.length > 0 && (
           <>
-            <div className="mt-2 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-gray-500">
-              <span>🔊</span> Voice
+            <div className="mt-4 flex items-center justify-between px-2 text-xs font-semibold uppercase text-[#949ba4]">
+              <span>Voice Channels</span>
             </div>
             {voiceChannels.map((c, idx) => {
               const members = voiceChannelMembers.get(c.id) || [];
