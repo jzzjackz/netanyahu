@@ -89,12 +89,6 @@ export default function ServerSettings() {
         }
       }
 
-      if (server.owner_id !== user.id) {
-        alert("Only server owners can access settings");
-        router.push("/commz");
-        return;
-      }
-
       setIsOwner(true);
       loadRoles();
       setLoading(false);
