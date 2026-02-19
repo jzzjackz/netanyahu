@@ -24,6 +24,7 @@ export default function ChannelSidebar() {
   const [voiceChannelMembers, setVoiceChannelMembers] = useState<Map<string, Array<{ id: string; username: string }>>>(new Map());
   const [channelPermissionsOpen, setChannelPermissionsOpen] = useState(false);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
+  const [conversationSearch, setConversationSearch] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -234,12 +235,18 @@ export default function ChannelSidebar() {
   };
 
   if (!currentServerId) {
+    const filteredConversations = conversations.filter(c => 
+      c.otherUser?.username.toLowerCase().includes(conversationSearch.toLowerCase())
+    );
+    
     return (
       <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
         <div className="flex h-12 items-center border-b border-[#1e1f22] px-4 shadow-sm">
           <input
             type="text"
             placeholder="Find or start a conversation"
+            value={conversationSearch}
+            onChange={(e) => setConversationSearch(e.target.value)}
             className="w-full rounded bg-[#1e1f22] px-2 py-1 text-sm text-[#dbdee1] placeholder-[#80848e] outline-none focus:outline-none"
           />
         </div>
@@ -247,9 +254,9 @@ export default function ChannelSidebar() {
           <div className="p-4">
             <div className="h-4 w-3/4 animate-pulse rounded bg-[#313338]" />
           </div>
-        ) : conversations.length > 0 ? (
+        ) : filteredConversations.length > 0 ? (
           <div className="flex-1 overflow-y-auto py-2">
-            {conversations.map((c) => (
+            {filteredConversations.map((c) => (
               <button
                 key={c.id}
                 type="button"
@@ -262,6 +269,10 @@ export default function ChannelSidebar() {
                 <span className="truncate">{c.otherUser?.username ?? "Unknown"}</span>
               </button>
             ))}
+          </div>
+        ) : conversationSearch ? (
+          <div className="flex flex-col items-center justify-center gap-2 p-4 text-gray-400">
+            <p className="text-sm">No conversations found</p>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center gap-2 p-4 text-gray-400">

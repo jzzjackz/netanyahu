@@ -423,6 +423,8 @@ export default function ChatArea() {
   }
 
   if (!currentChannelId) {
+    const [searchQuery, setSearchQuery] = useState("");
+    
     const getStatusColor = (status: string) => {
       switch (status) {
         case "online": return "bg-[#23a55a]";
@@ -452,6 +454,10 @@ export default function ChatArea() {
       if (conv) setConversation(conv.id);
     };
     
+    const filteredFriends = friends.filter(friend => 
+      friend.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    
     return (
       <div className="flex flex-1 flex-col bg-[#313338]">
         {/* Top Navigation Bar */}
@@ -471,17 +477,19 @@ export default function ChatArea() {
             <input
               type="text"
               placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm text-[#dbdee1] placeholder-[#80848e] outline-none"
             />
           </div>
           
-          {friends.length > 0 ? (
+          {filteredFriends.length > 0 ? (
             <>
               <div className="mb-4 text-xs font-semibold uppercase text-[#949ba4]">
-                All Friends — {friends.length}
+                All Friends — {filteredFriends.length}
               </div>
               <div className="space-y-2">
-                {friends.map((friend) => (
+                {filteredFriends.map((friend) => (
                   <div
                     key={friend.id}
                     className="flex items-center gap-3 rounded-lg border-t border-[#3f4147] p-4 hover:bg-[#393c43]"
@@ -515,6 +523,15 @@ export default function ChatArea() {
                 ))}
               </div>
             </>
+          ) : searchQuery ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <svg className="h-32 w-32 mb-4 text-[#4e5058]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+                <path d="M3 5v-.75C3 3.56 3.56 3 4.25 3s1.24.56 1.33 1.25C6.12 8.65 9.46 12 13 12h1a8 8 0 0 1 8 8 2 2 0 0 1-2 2 .21.21 0 0 1-.2-.15 7.65 7.65 0 0 0-1.32-2.3c-.15-.2-.42-.06-.39.17l.25 2c.02.15-.1.28-.25.28H9a2 2 0 0 1-2-2v-2.22c0-1.57-.67-3.05-1.53-4.37A15.85 15.85 0 0 1 3 5Z"/>
+              </svg>
+              <h3 className="text-base font-semibold text-white mb-2">No friends found</h3>
+              <p className="text-sm text-[#b5bac1]">Try searching for something else</p>
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <svg className="h-32 w-32 mb-4 text-[#4e5058]" fill="currentColor" viewBox="0 0 24 24">
