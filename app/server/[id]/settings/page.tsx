@@ -53,7 +53,7 @@ export default function ServerSettings() {
         .eq("id", serverId)
         .single();
 
-      if (serverError) {
+      if (serverError || !server) {
         console.error("Error loading server:", serverError);
         // If columns don't exist, just load basic info
         const { data: basicServer } = await supabase
@@ -78,12 +78,6 @@ export default function ServerSettings() {
           return;
         }
       } else {
-        if (!server) {
-          alert("Server not found");
-          router.push("/commz");
-          return;
-        }
-
         setServerName(server.name);
         setIsDiscoverable(server.is_discoverable || false);
         setDiscoveryDescription(server.discovery_description || "");
