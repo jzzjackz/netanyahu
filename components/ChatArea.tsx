@@ -927,6 +927,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
     if (!userId || !otherUser) return;
     
     // Send incoming call notification
+    console.log("📞 Starting call to:", otherUser.username, "conversation:", conversationId);
     const channel = supabase.channel(`call_offer:${conversationId}`);
     await channel.send({
       type: "broadcast",
@@ -937,6 +938,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
         username: (await supabase.from("profiles").select("username").eq("id", userId).single()).data?.username || "Unknown",
       },
     });
+    console.log("📞 Call offer sent");
     
     setInCall(true);
   };

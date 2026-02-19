@@ -391,6 +391,9 @@ export default function AppShell() {
 
     console.log("📞 Setting up incoming call listener for user:", userId);
 
+    let channels: any[] = [];
+    let isMounted = true;
+
     // Get all user's conversations
     const setupCallListeners = async () => {
       const { data: conversations } = await supabase
@@ -398,9 +401,14 @@ export default function AppShell() {
         .select("id")
         .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
 
-      if (!conversations) return;
+      if (!isMounted || !conversations || conversations.length === 0) {
+        console.log("No conversations found for call listeners");
+        return;
+      }
 
-      const channels = conversations.map((convo) => {
+      console.log(`Setting up call listeners for ${conversations.length} conversations`);
+
+      channels = conversations.map((convo) => {
         const channel = supabase
           .channel(`call_offer:${convo.id}`)
           .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
@@ -414,29 +422,29 @@ export default function AppShell() {
                 .eq("id", payload.from)
                 .single();
 
-              setIncomingCall({
-                conversationId: convo.id,
-                callerUsername: callerProfile?.username || "Unknown",
-                callerAvatar: callerProfile?.avatar_url,
-                callerId: payload.from,
-              });
+              if (isMounted) {
+                setIncomingCall({
+                  conversationId: convo.id,
+                  callerUsername: callerProfile?.username || "Unknown",
+                  callerAvatar: callerProfile?.avatar_url,
+                  callerId: payload.from,
+                });
+              }
             }
           })
-          .subscribe();
+          .subscribe((status) => {
+            console.log(`Call listener for ${convo.id}:`, status);
+          });
 
         return channel;
       });
-
-      return channels;
     };
 
-    let channels: any[] = [];
-    setupCallListeners().then((ch) => {
-      if (ch) channels = ch;
-    });
+    setupCallListeners();
 
     return () => {
       console.log("🔕 Cleaning up call listeners");
+      isMounted = false;
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
   }, [userId, supabase]);
