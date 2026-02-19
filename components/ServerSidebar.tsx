@@ -105,8 +105,8 @@ export default function ServerSidebar() {
         className={`group relative flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] transition-all duration-200 hover:rounded-[16px] hover:bg-[#5865f2] ${!currentServerId ? "rounded-[16px] bg-[#5865f2]" : ""}`}
         title="Home"
       >
-        <svg className="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 28 20">
-          <path d="M23.0212 1.67671C21.3107 0.879656 19.5079 0.318797 17.6584 0C17.4062 0.461742 17.1749 0.934541 16.9708 1.4184C15.003 1.12145 12.9974 1.12145 11.0283 1.4184C10.819 0.934541 10.589 0.461744 10.3368 0.00546311C8.48074 0.324393 6.67795 0.885118 4.96746 1.68231C1.56727 6.77853 0.649666 11.7538 1.11108 16.652C3.10102 18.1418 5.3262 19.2743 7.69177 20C8.22338 19.2743 8.69519 18.4993 9.09812 17.691C8.32996 17.3997 7.58522 17.0424 6.87684 16.6135C7.06531 16.4762 7.24726 16.3387 7.42403 16.1847C11.5911 18.1749 16.408 18.1749 20.5763 16.1847C20.7531 16.3332 20.9351 16.4762 21.1171 16.6135C20.41 17.0369 19.6639 17.3997 18.897 17.691C19.3052 18.4993 19.777 19.2689 20.3086 19.9945C22.6803 19.2689 24.9057 18.1364 26.8895 16.652C27.43 10.9731 25.9665 6.04728 23.0212 1.67671ZM9.68041 13.6383C8.39754 13.6383 7.34085 12.4453 7.34085 10.994C7.34085 9.54272 8.37155 8.34973 9.68041 8.34973C10.9893 8.34973 12.0395 9.54272 12.0187 10.994C12.0187 12.4453 10.9828 13.6383 9.68041 13.6383ZM18.3161 13.6383C17.0332 13.6383 15.9765 12.4453 15.9765 10.994C15.9765 9.54272 17.0124 8.34973 18.3161 8.34973C19.6184 8.34973 20.6751 9.54272 20.6543 10.994C20.6543 12.4453 19.6184 13.6383 18.3161 13.6383Z"/>
+        <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
         </svg>
         {!currentServerId && (
           <div className="absolute left-0 top-1/2 h-10 w-1 -translate-x-2 -translate-y-1/2 rounded-r bg-white" />
@@ -114,6 +114,7 @@ export default function ServerSidebar() {
       </button>
       
       <div className="my-1 h-[2px] w-8 rounded bg-[#35363c]" />
+      
       {servers.map((s) => (
         <button
           key={s.id}
@@ -146,28 +147,6 @@ export default function ServerSidebar() {
         title="Add Server"
       >
         +
-      </button>
-      
-      {/* Bottom Icons */}
-      <div className="mt-auto mb-2">
-        <button
-          type="button"
-          className="flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#248046] transition-all duration-200 hover:rounded-[16px]"
-          title="Download Apps"
-        >
-          <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M17 13v6c0 .55-.45 1-1 1H8c-.55 0-1-.45-1-1v-6H5l7-7 7 7h-2z"/>
-          </svg>
-        </button>
-      </div>
-      <button
-        type="button"
-        className="flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] transition-all duration-200 hover:rounded-[16px] hover:bg-[#5865f2]"
-        title="Help"
-      >
-        <svg className="h-6 w-6 text-[#23a55a]" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-        </svg>
       </button>
       {contextServer && (
         <>

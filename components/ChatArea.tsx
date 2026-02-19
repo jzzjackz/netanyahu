@@ -17,7 +17,7 @@ import FormattingToolbar from "./FormattingToolbar";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
-  const { currentChannelId, currentConversationId } = useAppStore();
+  const { currentChannelId, currentConversationId, setConversation } = useAppStore();
   const [channel, setChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +40,7 @@ export default function ChatArea() {
   const [canSendMessages, setCanSendMessages] = useState(true);
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
   const [reactingToMessage, setReactingToMessage] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Profile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -56,6 +57,25 @@ export default function ChatArea() {
           .eq("id", user.id)
           .single();
         setCurrentUsername(profile?.username || "");
+        
+        // Load friends list
+        const { data: accepted } = await supabase
+          .from("friend_requests")
+          .select("from_user_id, to_user_id")
+          .or(`from_user_id.eq.${user.id},to_user_id.eq.${user.id}`)
+          .eq("status", "accepted");
+        
+        const ids = (accepted ?? []).flatMap((r: { from_user_id: string; to_user_id: string }) =>
+          r.from_user_id === user.id ? [r.to_user_id] : [r.from_user_id]
+        );
+        
+        if (ids.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url, status")
+            .in("id", ids);
+          setFriends((profs as Profile[]) ?? []);
+        }
       }
     });
   }, [supabase.auth]);
@@ -403,6 +423,35 @@ export default function ChatArea() {
   }
 
   if (!currentChannelId) {
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case "online": return "bg-[#23a55a]";
+        case "idle": return "bg-[#f0b232]";
+        case "dnd": return "bg-[#f23f43]";
+        default: return "bg-[#80848e]";
+      }
+    };
+    
+    const openDM = async (friendId: string) => {
+      if (!userId) return;
+      const [userA, userB] = userId < friendId ? [userId, friendId] : [friendId, userId];
+      let { data: conv } = await supabase
+        .from("direct_conversations")
+        .select("id")
+        .eq("user_a_id", userA)
+        .eq("user_b_id", userB)
+        .maybeSingle();
+      if (!conv) {
+        const { data: inserted } = await supabase
+          .from("direct_conversations")
+          .insert({ user_a_id: userA, user_b_id: userB })
+          .select("id")
+          .single();
+        conv = inserted;
+      }
+      if (conv) setConversation(conv.id);
+    };
+    
     return (
       <div className="flex flex-1 flex-col bg-[#313338]">
         {/* Top Navigation Bar */}
@@ -416,14 +465,66 @@ export default function ChatArea() {
           </div>
         </div>
         
-        {/* Main Content Area */}
-        <div className="flex flex-1 flex-col items-center justify-center text-[#b5bac1]">
-          <svg className="h-32 w-32 mb-4 text-[#4e5058]" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
-            <path d="M3 5v-.75C3 3.56 3.56 3 4.25 3s1.24.56 1.33 1.25C6.12 8.65 9.46 12 13 12h1a8 8 0 0 1 8 8 2 2 0 0 1-2 2 .21.21 0 0 1-.2-.15 7.65 7.65 0 0 0-1.32-2.3c-.15-.2-.42-.06-.39.17l.25 2c.02.15-.1.28-.25.28H9a2 2 0 0 1-2-2v-2.22c0-1.57-.67-3.05-1.53-4.37A15.85 15.85 0 0 1 3 5Z"/>
-          </svg>
-          <h3 className="text-base font-semibold text-white mb-2">No one's around to play with Wumpus</h3>
-          <p className="text-sm">Select a channel or start a conversation</p>
+        {/* Friends List */}
+        <div className="flex-1 overflow-y-auto p-8">
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search"
+              className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm text-[#dbdee1] placeholder-[#80848e] outline-none"
+            />
+          </div>
+          
+          {friends.length > 0 ? (
+            <>
+              <div className="mb-4 text-xs font-semibold uppercase text-[#949ba4]">
+                All Friends — {friends.length}
+              </div>
+              <div className="space-y-2">
+                {friends.map((friend) => (
+                  <div
+                    key={friend.id}
+                    className="flex items-center gap-3 rounded-lg border-t border-[#3f4147] p-4 hover:bg-[#393c43]"
+                  >
+                    <button
+                      onClick={() => setProfileModalUserId(friend.id)}
+                      className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-semibold"
+                    >
+                      {friend.avatar_url ? (
+                        <img src={friend.avatar_url} alt={friend.username} className="h-full w-full rounded-full object-cover" />
+                      ) : (
+                        friend.username.slice(0, 1).toUpperCase()
+                      )}
+                      <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-[#313338] ${getStatusColor(friend.status)}`} />
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-[#dbdee1]">{friend.username}</div>
+                      <div className="text-xs text-[#949ba4] capitalize">{friend.status}</div>
+                    </div>
+                    <button
+                      onClick={() => openDM(friend.id)}
+                      className="rounded-full bg-[#2b2d31] p-2 hover:bg-[#35373c]"
+                      title="Message"
+                    >
+                      <svg className="h-5 w-5 text-[#b5bac1]" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+                        <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <svg className="h-32 w-32 mb-4 text-[#4e5058]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+                <path d="M3 5v-.75C3 3.56 3.56 3 4.25 3s1.24.56 1.33 1.25C6.12 8.65 9.46 12 13 12h1a8 8 0 0 1 8 8 2 2 0 0 1-2 2 .21.21 0 0 1-.2-.15 7.65 7.65 0 0 0-1.32-2.3c-.15-.2-.42-.06-.39.17l.25 2c.02.15-.1.28-.25.28H9a2 2 0 0 1-2-2v-2.22c0-1.57-.67-3.05-1.53-4.37A15.85 15.85 0 0 1 3 5Z"/>
+              </svg>
+              <h3 className="text-base font-semibold text-white mb-2">No friends yet</h3>
+              <p className="text-sm text-[#b5bac1]">Add friends to start chatting</p>
+            </div>
+          )}
         </div>
       </div>
     );
