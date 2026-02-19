@@ -409,12 +409,15 @@ export default function AppShell() {
       console.log(`Setting up call listeners for ${conversations.length} conversations`);
 
       channels = conversations.map((convo) => {
+        console.log(`📞 Setting up listener for conversation: ${convo.id}`);
         const channel = supabase
           .channel(`call_offer:${convo.id}`)
           .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
             console.log("📞 Received call offer:", payload);
+            console.log("📞 My userId:", userId, "Payload to:", payload.to, "Payload from:", payload.from);
             
             if (payload.to === userId && payload.from !== userId) {
+              console.log("📞 Call is for me! Getting caller profile...");
               // Get caller profile
               const { data: callerProfile } = await supabase
                 .from("profiles")
@@ -422,7 +425,10 @@ export default function AppShell() {
                 .eq("id", payload.from)
                 .single();
 
+              console.log("📞 Caller profile:", callerProfile);
+
               if (isMounted) {
+                console.log("📞 Setting incoming call state");
                 setIncomingCall({
                   conversationId: convo.id,
                   callerUsername: callerProfile?.username || "Unknown",
@@ -430,6 +436,8 @@ export default function AppShell() {
                   callerId: payload.from,
                 });
               }
+            } else {
+              console.log("📞 Call not for me, ignoring");
             }
           })
           .subscribe((status) => {
