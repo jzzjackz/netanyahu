@@ -8,16 +8,19 @@ interface MessageNotificationProps {
   message: string;
   onClose: () => void;
   onClick?: () => void;
+  playSound?: boolean;
 }
 
-export default function MessageNotification({ senderUsername, message, onClose, onClick }: MessageNotificationProps) {
+export default function MessageNotification({ senderUsername, message, onClose, onClick, playSound = true }: MessageNotificationProps) {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     console.log("🔔 Notification mounted for:", senderUsername);
     
-    // Play notification sound using global audio manager
-    audioManager.playNotification();
+    // Play notification sound only if playSound is true
+    if (playSound) {
+      audioManager.playNotification();
+    }
 
     // Auto-hide after 5 seconds
     const timer = setTimeout(() => {
@@ -28,7 +31,7 @@ export default function MessageNotification({ senderUsername, message, onClose, 
     return () => {
       clearTimeout(timer);
     };
-  }, [onClose, senderUsername]);
+  }, [onClose, senderUsername, playSound]);
 
   if (!isVisible) return null;
 

@@ -24,6 +24,7 @@ export default function AppShell() {
     conversationId?: string;
     serverId?: string;
     channelId?: string;
+    isMention?: boolean;
   } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -345,6 +346,7 @@ export default function AppShell() {
           message: `mentioned you: ${message}`,
           channelId,
           serverId,
+          isMention: true,
         });
         
         // Show browser notification
@@ -413,6 +415,7 @@ export default function AppShell() {
           senderUsername={notification.sender}
           message={notification.message}
           onClose={() => setNotification(null)}
+          playSound={notification.isMention === true}
           onClick={() => {
             if (notification.conversationId) {
               setConversation(notification.conversationId);
