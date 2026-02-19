@@ -41,6 +41,7 @@ export default function ChatArea() {
   const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
   const [reactingToMessage, setReactingToMessage] = useState<string | null>(null);
   const [friends, setFriends] = useState<Profile[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -423,8 +424,6 @@ export default function ChatArea() {
   }
 
   if (!currentChannelId) {
-    const [searchQuery, setSearchQuery] = useState("");
-    
     const getStatusColor = (status: string) => {
       switch (status) {
         case "online": return "bg-[#23a55a]";
