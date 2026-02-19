@@ -413,8 +413,11 @@ export default function AppShell() {
         const channel = supabase
           .channel(`call_offer:${convo.id}`)
           .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
-            console.log("📞 Received call offer:", payload);
-            console.log("📞 My userId:", userId, "Payload to:", payload.to, "Payload from:", payload.from);
+            console.log("📞 RAW CALL OFFER RECEIVED:", payload);
+            console.log("📞 Current userId:", userId);
+            console.log("📞 Payload.to:", payload.to);
+            console.log("📞 Payload.from:", payload.from);
+            console.log("📞 Match check:", payload.to === userId, payload.from !== userId);
             
             if (payload.to === userId && payload.from !== userId) {
               console.log("📞 Call is for me! Getting caller profile...");
@@ -431,17 +434,22 @@ export default function AppShell() {
                 console.log("📞 Setting incoming call state");
                 setIncomingCall({
                   conversationId: convo.id,
-                  callerUsername: callerProfile?.username || "Unknown",
+                  callerUsername: callerProfile?.username || payload.username || "Unknown",
                   callerAvatar: callerProfile?.avatar_url,
                   callerId: payload.from,
                 });
+                
+                // Play ringtone
+                const audio = new Audio("/sounds/ringtone.ogg");
+                audio.loop = true;
+                audio.play().catch(err => console.log("Failed to play ringtone:", err));
               }
             } else {
               console.log("📞 Call not for me, ignoring");
             }
           })
           .subscribe((status) => {
-            console.log(`Call listener for ${convo.id}:`, status);
+            console.log(`📞 Call listener for ${convo.id} status:`, status);
           });
 
         return channel;
