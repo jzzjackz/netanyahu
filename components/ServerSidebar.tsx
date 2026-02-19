@@ -106,6 +106,14 @@ export default function ServerSidebar() {
       >
         <span className="text-xl">⌂</span>
       </button>
+      <button
+        type="button"
+        onClick={() => window.location.href = "/discover"}
+        className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#313338] transition hover:rounded-xl hover:bg-green-500"
+        title="Discover Servers"
+      >
+        <span className="text-xl">🔍</span>
+      </button>
       <div className="my-1 h-px w-8 bg-[#313338]" />
       {servers.map((s) => (
         <button

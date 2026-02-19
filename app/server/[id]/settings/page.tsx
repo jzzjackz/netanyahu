@@ -33,6 +33,8 @@ export default function ServerSettings() {
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
   const [serverName, setServerName] = useState("");
+  const [isDiscoverable, setIsDiscoverable] = useState(false);
+  const [discoveryDescription, setDiscoveryDescription] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [showCreateRole, setShowCreateRole] = useState(false);
@@ -45,19 +47,53 @@ export default function ServerSettings() {
         return;
       }
 
-      const { data: server } = await supabase
+      const { data: server, error: serverError } = await supabase
         .from("servers")
-        .select("name, owner_id")
+        .select("name, owner_id, is_discoverable, discovery_description")
         .eq("id", serverId)
         .single();
 
-      if (!server) {
-        alert("Server not found");
-        router.push("/commz");
-        return;
-      }
+      if (serverError) {
+        console.error("Error loading server:", serverError);
+        // If columns don't exist, just load basic info
+        const { data: basicServer } = await supabase
+          .from("servers")
+          .select("name, owner_id")
+          .eq("id", serverId)
+          .single();
+        
+        if (!basicServer) {
+          alert("Server not found");
+          router.push("/commz");
+          return;
+        }
+        
+        setServerName(basicServer.name);
+        setIsDiscoverable(false);
+        setDiscoveryDescription("");
+        
+        if (basicServer.owner_id !== user.id) {
+          alert("Only server owners can access settings");
+          router.push("/commz");
+          return;
+        }
+      } else {
+        if (!server) {
+          alert("Server not found");
+          router.push("/commz");
+          return;
+        }
 
-      setServerName(server.name);
+        setServerName(server.name);
+        setIsDiscoverable(server.is_discoverable || false);
+        setDiscoveryDescription(server.discovery_description || "");
+
+        if (server.owner_id !== user.id) {
+          alert("Only server owners can access settings");
+          router.push("/commz");
+          return;
+        }
+      }
 
       if (server.owner_id !== user.id) {
         alert("Only server owners can access settings");
@@ -162,6 +198,70 @@ export default function ServerSettings() {
           >
             Back to Server
           </Link>
+        </div>
+
+        {/* Discovery Section */}
+        <div className="mb-6 rounded-lg bg-[#2b2d31] p-6">
+          <h2 className="mb-4 text-xl font-bold">Server Discovery</h2>
+          <p className="mb-4 text-sm text-gray-400">
+            Make your server discoverable so others can find and join it
+          </p>
+          
+          <div className="mb-4">
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isDiscoverable}
+                onChange={(e) => setIsDiscoverable(e.target.checked)}
+                className="h-5 w-5 cursor-pointer"
+              />
+              <span className="font-medium">Make server discoverable</span>
+            </label>
+          </div>
+
+          {isDiscoverable && (
+            <div className="mb-4">
+              <label className="mb-2 block text-sm text-gray-400">
+                Server Description (max 100 characters)
+              </label>
+              <textarea
+                value={discoveryDescription}
+                onChange={(e) => {
+                  if (e.target.value.length <= 100) {
+                    setDiscoveryDescription(e.target.value);
+                  }
+                }}
+                placeholder="Describe your server..."
+                className="w-full rounded-sm bg-[#313338] px-3 py-2 text-[15px] outline-none resize-none"
+                rows={3}
+                maxLength={100}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {discoveryDescription.length}/100 characters
+              </p>
+            </div>
+          )}
+
+          <button
+            onClick={async () => {
+              const { error } = await supabase
+                .from("servers")
+                .update({
+                  is_discoverable: isDiscoverable,
+                  discovery_description: isDiscoverable ? discoveryDescription : null,
+                })
+                .eq("id", serverId);
+
+              if (error) {
+                alert("Failed to update discovery settings: " + error.message);
+              } else {
+                alert("Discovery settings saved!");
+              }
+            }}
+            className="rounded-sm bg-[#5865f2] px-4 py-2 text-sm font-medium hover:bg-[#4752c4]"
+          >
+            Save Discovery Settings
+          </button>
         </div>
 
         {/* Roles Section */}
