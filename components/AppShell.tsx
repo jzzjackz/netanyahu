@@ -389,12 +389,9 @@ export default function AppShell() {
   useEffect(() => {
     if (!userId) return;
 
-    console.log("📞 Setting up incoming call listener for user:", userId);
-
     let channels: any[] = [];
     let isMounted = true;
 
-    // Get all user's conversations
     const setupCallListeners = async () => {
       const { data: conversations } = await supabase
         .from("direct_conversations")
@@ -402,36 +399,21 @@ export default function AppShell() {
         .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
 
       if (!isMounted || !conversations || conversations.length === 0) {
-        console.log("No conversations found for call listeners");
         return;
       }
 
-      console.log(`Setting up call listeners for ${conversations.length} conversations`);
-
       channels = conversations.map((convo) => {
-        console.log(`📞 Setting up listener for conversation: ${convo.id}`);
         const channel = supabase
           .channel(`call_offer:${convo.id}`)
           .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
-            console.log("📞 RAW CALL OFFER RECEIVED:", payload);
-            console.log("📞 Current userId:", userId);
-            console.log("📞 Payload.to:", payload.to);
-            console.log("📞 Payload.from:", payload.from);
-            console.log("📞 Match check:", payload.to === userId, payload.from !== userId);
-            
             if (payload.to === userId && payload.from !== userId) {
-              console.log("📞 Call is for me! Getting caller profile...");
-              // Get caller profile
               const { data: callerProfile } = await supabase
                 .from("profiles")
                 .select("username, avatar_url")
                 .eq("id", payload.from)
                 .single();
 
-              console.log("📞 Caller profile:", callerProfile);
-
               if (isMounted) {
-                console.log("📞 Setting incoming call state");
                 setIncomingCall({
                   conversationId: convo.id,
                   callerUsername: callerProfile?.username || payload.username || "Unknown",
@@ -439,18 +421,13 @@ export default function AppShell() {
                   callerId: payload.from,
                 });
                 
-                // Play ringtone
                 const audio = new Audio("/sounds/ringtone.ogg");
                 audio.loop = true;
-                audio.play().catch(err => console.log("Failed to play ringtone:", err));
+                audio.play().catch(() => {});
               }
-            } else {
-              console.log("📞 Call not for me, ignoring");
             }
           })
-          .subscribe((status) => {
-            console.log(`📞 Call listener for ${convo.id} status:`, status);
-          });
+          .subscribe();
 
         return channel;
       });
@@ -459,7 +436,6 @@ export default function AppShell() {
     setupCallListeners();
 
     return () => {
-      console.log("🔕 Cleaning up call listeners");
       isMounted = false;
       channels.forEach((ch) => supabase.removeChannel(ch));
     };

@@ -1089,31 +1089,32 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const handleStartCall = async () => {
     if (!userId || !otherUser) return;
     
-    // Send incoming call notification
-    console.log("📞 Starting call to:", otherUser.username, "conversation:", conversationId);
     const channel = supabase.channel(`call_offer:${conversationId}`);
     
-    // Subscribe to channel first
+    // Subscribe and wait
     await new Promise((resolve) => {
       channel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log("📞 Call channel subscribed");
           resolve(true);
         }
       });
     });
     
-    // Now send the call offer
-    await channel.send({
+    // Send the call offer
+    const { error } = await channel.send({
       type: "broadcast",
       event: "call_offer",
       payload: {
         from: userId,
         to: otherUser.id,
-        username: (await supabase.from("profiles").select("username").eq("id", userId).single()).data?.username || "Unknown",
+        username: currentUsername,
       },
     });
-    console.log("📞 Call offer sent");
+    
+    if (error) {
+      alert("Failed to start call");
+      return;
+    }
     
     setInCall(true);
   };
