@@ -36,6 +36,7 @@ export default function ChatArea() {
   const [mentionQuery, setMentionQuery] = useState("");
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [serverMembers, setServerMembers] = useState<Profile[]>([]);
+  const [canSendMessages, setCanSendMessages] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -72,6 +73,15 @@ export default function ChatArea() {
       ]);
       const channelData = chRes.data as Channel | null;
       setChannel(channelData);
+      
+      // Check if user can send messages in this channel
+      if (channelData && userId) {
+        const { data: canSend } = await supabase.rpc("can_user_send_in_channel", {
+          p_user_id: userId,
+          p_channel_id: currentChannelId,
+        });
+        setCanSendMessages(canSend ?? true);
+      }
       
       // Load server members for mention autocomplete
       if (channelData?.server_id) {
@@ -157,7 +167,7 @@ export default function ChatArea() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setContent(value);
     handleTyping();
@@ -588,6 +598,11 @@ export default function ChatArea() {
         <div ref={messagesEndRef} />
       </div>
       <form onSubmit={handleSend} className="relative border-t border-[#1e1f22] p-4">
+        {!canSendMessages && (
+          <div className="mb-2 rounded bg-red-500/20 px-3 py-2 text-sm text-red-300">
+            You do not have permission to send messages in this channel.
+          </div>
+        )}
         {replyingTo && (
           <div className="mb-2 flex items-center gap-2 rounded bg-[#2b2d31] px-3 py-2 text-sm">
             <span className="text-gray-400">Replying to {replyingTo.profiles?.username || "Unknown"}</span>
@@ -631,7 +646,8 @@ export default function ChatArea() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="text-gray-400 hover:text-gray-200"
+            disabled={!canSendMessages}
+            className="text-gray-400 hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Attach files"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -641,7 +657,8 @@ export default function ChatArea() {
           <button
             type="button"
             onClick={() => setShowGifPicker(true)}
-            className="text-gray-400 hover:text-gray-200"
+            disabled={!canSendMessages}
+            className="text-gray-400 hover:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Send GIF"
           >
             <span className="text-lg">GIF</span>
@@ -651,8 +668,9 @@ export default function ChatArea() {
             value={content}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder={`Message #${channel?.name ?? ""}`}
-            className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-gray-500 max-h-32 overflow-y-auto"
+            placeholder={canSendMessages ? `Message #${channel?.name ?? ""}` : "You cannot send messages in this channel"}
+            disabled={!canSendMessages}
+            className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-gray-500 max-h-32 overflow-y-auto disabled:cursor-not-allowed disabled:text-gray-500"
             rows={1}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement;
@@ -662,7 +680,7 @@ export default function ChatArea() {
           />
           <button 
             type="submit" 
-            disabled={sending || uploadingFiles || (!content.trim() && selectedFiles.length === 0)} 
+            disabled={!canSendMessages || sending || uploadingFiles || (!content.trim() && selectedFiles.length === 0)} 
             className="rounded bg-indigo-500 px-4 py-1.5 text-sm font-medium hover:bg-indigo-600 disabled:opacity-50"
           >
             {uploadingFiles ? "Uploading..." : "Send"}

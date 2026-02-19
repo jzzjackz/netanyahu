@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
 import { useAppStore } from "../lib/store";
 import type { Channel, Server, DirectConversation, Profile } from "../lib/types";
+import ChannelPermissionsModal from "./ChannelPermissionsModal";
 
 export default function ChannelSidebar() {
   const supabase = createSupabaseBrowserClient();
@@ -21,6 +22,8 @@ export default function ChannelSidebar() {
   const [inviteGenerating, setInviteGenerating] = useState(false);
   const [channelType, setChannelType] = useState<"text" | "voice">("text");
   const [voiceChannelMembers, setVoiceChannelMembers] = useState<Map<string, Array<{ id: string; username: string }>>>(new Map());
+  const [channelPermissionsOpen, setChannelPermissionsOpen] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
@@ -298,15 +301,34 @@ export default function ChannelSidebar() {
               <span>#</span> Text
             </div>
             {textChannels.map((c) => (
-              <button
+              <div
                 key={c.id}
-                type="button"
-                onClick={() => setChannel(c.id)}
-                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
+                className={`group flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
               >
-                <span className="text-gray-500">#</span>
-                <span className="truncate">{c.name}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setChannel(c.id)}
+                  className="flex flex-1 items-center gap-2"
+                >
+                  <span className="text-gray-500">#</span>
+                  <span className="truncate">{c.name}</span>
+                </button>
+                {server?.owner_id === userId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedChannel(c);
+                      setChannelPermissionsOpen(true);
+                    }}
+                    className="hidden group-hover:block rounded p-0.5 text-gray-400 hover:text-white"
+                    title="Channel Permissions"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             ))}
           </>
         )}
@@ -424,6 +446,17 @@ export default function ChannelSidebar() {
             </form>
           </div>
         </div>
+      )}
+      {channelPermissionsOpen && selectedChannel && currentServerId && (
+        <ChannelPermissionsModal
+          channelId={selectedChannel.id}
+          channelName={selectedChannel.name}
+          serverId={currentServerId}
+          onClose={() => {
+            setChannelPermissionsOpen(false);
+            setSelectedChannel(null);
+          }}
+        />
       )}
     </div>
   );
