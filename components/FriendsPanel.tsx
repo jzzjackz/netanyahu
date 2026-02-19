@@ -175,30 +175,30 @@ export default function FriendsPanel() {
 
   return (
     <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
-      <div className="border-b border-[#1e1f22] px-4 py-2 text-xs font-semibold uppercase text-gray-500">
-        Friends
+      <div className="flex h-12 items-center border-b border-[#1e1f22] px-4">
+        <h2 className="text-base font-semibold text-white">Friends</h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
         <button
           type="button"
           onClick={() => setAddOpen(true)}
-          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
+          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm font-medium text-[#dbdee1] hover:bg-[#35373c] hover:text-white"
         >
           <span className="text-lg">+</span> Add Friend
         </button>
         {pendingIn.length > 0 && (
           <div className="mt-2">
-            <div className="px-2 text-xs font-semibold text-gray-500">Pending</div>
+            <div className="px-2 py-1 text-xs font-semibold uppercase text-[#949ba4]">Pending</div>
             {pendingIn.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-white/5">
-                <span className="truncate text-sm text-gray-200">
+              <div key={r.id} className="flex items-center justify-between rounded px-2 py-1.5 hover:bg-[#35373c]">
+                <span className="truncate text-sm text-[#dbdee1]">
                   {r.from_profile?.username ?? "Unknown"}
                 </span>
                 <div className="flex gap-1">
-                  <button type="button" onClick={() => acceptRequest(r.from_user_id)} className="rounded bg-green-600 px-2 py-0.5 text-xs hover:bg-green-500">
+                  <button type="button" onClick={() => acceptRequest(r.from_user_id)} className="rounded bg-[#248046] px-2 py-0.5 text-xs font-medium text-white hover:bg-[#1a6334]">
                     Accept
                   </button>
-                  <button type="button" onClick={() => rejectRequest(r.from_user_id)} className="rounded bg-[#404249] px-2 py-0.5 text-xs hover:bg-[#50525a]">
+                  <button type="button" onClick={() => rejectRequest(r.from_user_id)} className="rounded bg-[#4e5058] px-2 py-0.5 text-xs font-medium text-white hover:bg-[#5d5f67]">
                     Deny
                   </button>
                 </div>
@@ -207,29 +207,29 @@ export default function FriendsPanel() {
           </div>
         )}
         <div className="mt-2 flex-1">
-          <div className="px-2 text-xs font-semibold text-gray-500">All Friends</div>
+          <div className="px-2 py-1 text-xs font-semibold uppercase text-[#949ba4]">All Friends — {friends.length}</div>
           {friends.map((f) => {
             const isCurrentUser = f.id === userId;
             return (
-            <div key={f.id} className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5">
+            <div key={f.id} className="group flex items-center gap-3 rounded px-2 py-2 hover:bg-[#35373c]">
               <button
                 onClick={() => setProfileModalUserId(f.id)}
-                className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-xs font-bold hover:opacity-80"
+                className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#5865f2] text-sm font-semibold hover:opacity-80"
               >
                 {f.avatar_url ? (
                   <img src={f.avatar_url} alt={f.username} className="h-full w-full rounded-full object-cover" />
                 ) : (
                   f.username.slice(0, 1).toUpperCase()
                 )}
-                <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#2b2d31] ${getStatusColor(f.status)}`} />
+                <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[3px] border-[#2b2d31] ${getStatusColor(f.status)}`} />
               </button>
               <button
                 onClick={() => openDM(f.id)}
                 className="min-w-0 flex-1 text-left"
               >
-                <div className="truncate text-sm font-medium text-gray-200 hover:underline">{f.username}</div>
+                <div className="truncate text-sm font-semibold text-[#dbdee1] hover:underline">{f.username}</div>
                 {f.custom_status && (
-                  <div className="truncate text-xs text-gray-500">{f.custom_status}</div>
+                  <div className="truncate text-xs text-[#949ba4]">{f.custom_status}</div>
                 )}
               </button>
               {isCurrentUser && (
@@ -252,7 +252,7 @@ export default function FriendsPanel() {
           <button
             type="button"
             onClick={() => supabase.auth.signOut()}
-            className="w-full rounded px-2 py-1.5 text-left text-sm text-gray-400 hover:bg-white/5 hover:text-red-400"
+            className="w-full rounded px-2 py-1.5 text-left text-sm text-[#949ba4] hover:bg-[#35373c] hover:text-[#f23f43]"
           >
             Log out
           </button>

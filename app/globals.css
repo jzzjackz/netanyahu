@@ -53,10 +53,12 @@ body {
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #dbdee1;
+  font-size: 16px;
+  line-height: 1.375;
 }
 
 /* Mobile optimizations */
