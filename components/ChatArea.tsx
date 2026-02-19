@@ -12,6 +12,7 @@ import PrivateCall from "./PrivateCall";
 import UserProfileModal from "./UserProfileModal";
 import GifPicker from "./GifPicker";
 import { createMentions, createDMMentions } from "../lib/mentions";
+import MessageContent from "./MessageContent";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -39,7 +40,7 @@ export default function ChatArea() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -205,7 +206,7 @@ export default function ChatArea() {
     }, 0);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentionSuggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -224,6 +225,11 @@ export default function ChatArea() {
         setMentionSuggestions([]);
         setMentionQuery("");
       }
+    } else if (e.key === "Enter" && !e.shiftKey) {
+      // Submit on Enter, allow Shift+Enter for new line
+      e.preventDefault();
+      const form = e.currentTarget.closest('form');
+      if (form) form.requestSubmit();
     }
   };
 
@@ -494,17 +500,12 @@ export default function ChatArea() {
                     if (isOnlyGif) return null;
                     
                     return (
-                      <div className="prose prose-invert max-w-none break-words text-gray-200">
-                        <div dangerouslySetInnerHTML={{
-                          __html: m.content.replace(/@(\w+)/g, (match, username) => {
-                            const isSelf = username === currentUsername;
-                            return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
-                          })
-                        }} />
+                      <>
+                        <MessageContent content={m.content} currentUsername={currentUsername} />
                         {m.edited_at && (
                           <span className="ml-1 text-xs text-gray-500">(edited)</span>
                         )}
-                      </div>
+                      </>
                     );
                   })()}
                 </>
@@ -645,14 +646,19 @@ export default function ChatArea() {
           >
             <span className="text-lg">GIF</span>
           </button>
-          <input
-            ref={inputRef}
-            type="text"
+          <textarea
+            ref={inputRef as any}
             value={content}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder={`Message #${channel?.name ?? ""}`}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
+            className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-gray-500 max-h-32 overflow-y-auto"
+            rows={1}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+            }}
           />
           <button 
             type="submit" 
@@ -1094,12 +1100,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
                       if (isOnlyGif || !m.content) return null;
                       
                       return (
-                        <div dangerouslySetInnerHTML={{
-                          __html: m.content.replace(/@(\w+)/g, (match, username) => {
-                            const isSelf = username === currentUsername;
-                            return `<span class="${isSelf ? 'bg-yellow-500/20 text-yellow-300 px-1 rounded font-semibold' : 'bg-indigo-500/20 text-indigo-300 px-1 rounded'}">${match}</span>`;
-                          })
-                        }} className="text-gray-200" />
+                        <MessageContent content={m.content} currentUsername={currentUsername} />
                       );
                     })()}
                     {m.edited_at && (
@@ -1217,12 +1218,24 @@ function DMArea({ conversationId }: { conversationId: string }) {
             >
               <span className="text-lg">GIF</span>
             </button>
-            <input
-              type="text"
+            <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  const form = e.currentTarget.closest('form');
+                  if (form) form.requestSubmit();
+                }
+              }}
               placeholder="Message"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-500"
+              className="flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-gray-500 max-h-32 overflow-y-auto"
+              rows={1}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = Math.min(target.scrollHeight, 128) + 'px';
+              }}
             />
             <button 
               type="submit" 
