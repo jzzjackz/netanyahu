@@ -114,31 +114,6 @@ export default function ServerSidebar() {
       </button>
       
       <div className="my-1 h-[2px] w-8 rounded bg-[#35363c]" />
-      
-      {/* Star Icon */}
-      <button
-        type="button"
-        className="group relative flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] transition-all duration-200 hover:rounded-[16px] hover:bg-[#5865f2]"
-        title="Favorites"
-      >
-        <svg className="h-6 w-6 text-[#23a55a]" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      </button>
-      
-      {/* Compass Icon */}
-      <button
-        type="button"
-        onClick={() => window.location.href = "/discover"}
-        className="group relative flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] transition-all duration-200 hover:rounded-[16px] hover:bg-[#23a559]"
-        title="Discover Servers"
-      >
-        <svg className="h-6 w-6 text-[#23a55a]" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 10.9c-.61 0-1.1.49-1.1 1.1s.49 1.1 1.1 1.1c.61 0 1.1-.49 1.1-1.1s-.49-1.1-1.1-1.1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.19 12.19L6 18l3.81-8.19L18 6l-3.81 8.19z"/>
-        </svg>
-      </button>
-      
-      <div className="my-1 h-[2px] w-8 rounded bg-[#35363c]" />
       {servers.map((s) => (
         <button
           key={s.id}

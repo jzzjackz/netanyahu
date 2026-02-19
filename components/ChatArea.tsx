@@ -405,7 +405,7 @@ export default function ChatArea() {
   if (!currentChannelId) {
     return (
       <div className="flex flex-1 flex-col bg-[#313338]">
-        {/* Top Navigation Bar with Tabs */}
+        {/* Top Navigation Bar */}
         <div className="flex h-12 items-center border-b border-[#1e1f22] px-4 shadow-sm">
           <div className="flex items-center gap-2 text-[#949ba4]">
             <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
@@ -414,72 +414,16 @@ export default function ChatArea() {
             </svg>
             <span className="ml-2 text-base font-semibold text-white">Friends</span>
           </div>
-          <div className="ml-8 flex items-center gap-4">
-            <button className="rounded px-2 py-1 text-sm font-medium text-white bg-[#404249] hover:bg-[#4e5058]">
-              Online
-            </button>
-            <button className="rounded px-2 py-1 text-sm font-medium text-[#949ba4] hover:bg-[#404249] hover:text-white">
-              All
-            </button>
-            <button className="rounded px-2 py-1 text-sm font-medium text-[#949ba4] hover:bg-[#404249] hover:text-white">
-              Pending
-            </button>
-            <button className="rounded px-2 py-1 text-sm font-medium text-[#23a55a] hover:bg-[#404249]">
-              Add Friend
-            </button>
-          </div>
-          <div className="ml-auto flex items-center gap-4">
-            <button className="text-[#b5bac1] hover:text-white" title="New Group DM">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </button>
-            <button className="text-[#b5bac1] hover:text-white" title="Inbox">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-            </button>
-            <span className="text-base font-semibold text-white">Active Now</span>
-          </div>
         </div>
         
         {/* Main Content Area */}
-        <div className="flex flex-1">
-          {/* Friends List */}
-          <div className="flex-1 overflow-y-auto p-8">
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search"
-                className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm text-[#dbdee1] placeholder-[#80848e] outline-none focus:outline-none"
-              />
-            </div>
-            <div className="text-xs font-semibold uppercase text-[#949ba4] mb-4">Online — 0</div>
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <svg className="h-24 w-24 mb-4 text-[#4e5058]" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
-                <path d="M3 5v-.75C3 3.56 3.56 3 4.25 3s1.24.56 1.33 1.25C6.12 8.65 9.46 12 13 12h1a8 8 0 0 1 8 8 2 2 0 0 1-2 2 .21.21 0 0 1-.2-.15 7.65 7.65 0 0 0-1.32-2.3c-.15-.2-.42-.06-.39.17l.25 2c.02.15-.1.28-.25.28H9a2 2 0 0 1-2-2v-2.22c0-1.57-.67-3.05-1.53-4.37A15.85 15.85 0 0 1 3 5Z"/>
-              </svg>
-              <h3 className="text-base font-semibold text-white mb-2">This friends list needs more power</h3>
-              <p className="text-sm text-[#b5bac1]">Where we're going, we need more friends.</p>
-            </div>
-          </div>
-          
-          {/* Active Now Sidebar */}
-          <div className="w-[360px] border-l border-[#1e1f22] bg-[#2b2d31]">
-            <div className="p-4">
-              <h2 className="text-xs font-semibold uppercase text-[#949ba4] mb-4">Active Now</h2>
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="text-6xl mb-4 text-[#4e5058]">
-                  <span className="inline-block">z</span>
-                  <span className="inline-block">z</span>
-                  <span className="inline-block">z</span>
-                </div>
-                <h3 className="text-base font-semibold text-white mb-2">It's quiet for now...</h3>
-                <p className="text-sm text-[#b5bac1]">When friends are active in voice channels, their activity will appear here.</p>
-              </div>
-            </div>
-          </div>
+        <div className="flex flex-1 flex-col items-center justify-center text-[#b5bac1]">
+          <svg className="h-32 w-32 mb-4 text-[#4e5058]" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+            <path d="M3 5v-.75C3 3.56 3.56 3 4.25 3s1.24.56 1.33 1.25C6.12 8.65 9.46 12 13 12h1a8 8 0 0 1 8 8 2 2 0 0 1-2 2 .21.21 0 0 1-.2-.15 7.65 7.65 0 0 0-1.32-2.3c-.15-.2-.42-.06-.39.17l.25 2c.02.15-.1.28-.25.28H9a2 2 0 0 1-2-2v-2.22c0-1.57-.67-3.05-1.53-4.37A15.85 15.85 0 0 1 3 5Z"/>
+          </svg>
+          <h3 className="text-base font-semibold text-white mb-2">No one's around to play with Wumpus</h3>
+          <p className="text-sm">Select a channel or start a conversation</p>
         </div>
       </div>
     );
