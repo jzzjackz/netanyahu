@@ -8,6 +8,7 @@ import MemberList from "./MemberList";
 import FriendsPanel from "./FriendsPanel";
 import VoiceCall from "./VoiceCall";
 import MessageNotification from "./MessageNotification";
+import IncomingCallNotification from "./IncomingCallNotification";
 import AnnouncementBanner from "./AnnouncementBanner";
 import { useAppStore } from "../lib/store";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
@@ -28,6 +29,12 @@ export default function AppShell() {
   } | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{
+    conversationId: string;
+    callerUsername: string;
+    callerAvatar?: string;
+    callerId: string;
+  } | null>(null);
   
   // Use ref to track current conversation without causing re-subscriptions
   const currentConversationIdRef = useRef(currentConversationId);
@@ -378,6 +385,62 @@ export default function AppShell() {
     };
   }, [userId, supabase]);
 
+  // Incoming call listener
+  useEffect(() => {
+    if (!userId) return;
+
+    console.log("📞 Setting up incoming call listener for user:", userId);
+
+    // Get all user's conversations
+    const setupCallListeners = async () => {
+      const { data: conversations } = await supabase
+        .from("direct_conversations")
+        .select("id")
+        .or(`user_a_id.eq.${userId},user_b_id.eq.${userId}`);
+
+      if (!conversations) return;
+
+      const channels = conversations.map((convo) => {
+        const channel = supabase
+          .channel(`call_offer:${convo.id}`)
+          .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
+            console.log("📞 Received call offer:", payload);
+            
+            if (payload.to === userId && payload.from !== userId) {
+              // Get caller profile
+              const { data: callerProfile } = await supabase
+                .from("profiles")
+                .select("username, avatar_url")
+                .eq("id", payload.from)
+                .single();
+
+              setIncomingCall({
+                conversationId: convo.id,
+                callerUsername: callerProfile?.username || "Unknown",
+                callerAvatar: callerProfile?.avatar_url,
+                callerId: payload.from,
+              });
+            }
+          })
+          .subscribe();
+
+        return channel;
+      });
+
+      return channels;
+    };
+
+    let channels: any[] = [];
+    setupCallListeners().then((ch) => {
+      if (ch) channels = ch;
+    });
+
+    return () => {
+      console.log("🔕 Cleaning up call listeners");
+      channels.forEach((ch) => supabase.removeChannel(ch));
+    };
+  }, [userId, supabase]);
+
   useEffect(() => {
     if (!currentChannelId) {
       setVoiceChannel(null);
@@ -410,6 +473,25 @@ export default function AppShell() {
   return (
     <div className="flex h-full w-full">
       <AnnouncementBanner />
+      {incomingCall && (
+        <IncomingCallNotification
+          callerUsername={incomingCall.callerUsername}
+          callerAvatar={incomingCall.callerAvatar}
+          onAccept={() => {
+            setConversation(incomingCall.conversationId);
+            setIncomingCall(null);
+          }}
+          onDecline={() => {
+            // Send decline signal
+            supabase.channel(`call_offer:${incomingCall.conversationId}`).send({
+              type: "broadcast",
+              event: "call_declined",
+              payload: { from: userId, to: incomingCall.callerId },
+            });
+            setIncomingCall(null);
+          }}
+        />
+      )}
       {notification && (
         <MessageNotification
           senderUsername={notification.sender}

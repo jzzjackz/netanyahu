@@ -927,10 +927,10 @@ function DMArea({ conversationId }: { conversationId: string }) {
     if (!userId || !otherUser) return;
     
     // Send incoming call notification
-    const channel = supabase.channel(`dm_call:${conversationId}`);
+    const channel = supabase.channel(`call_offer:${conversationId}`);
     await channel.send({
       type: "broadcast",
-      event: "incoming_call",
+      event: "call_offer",
       payload: {
         from: userId,
         to: otherUser.id,
