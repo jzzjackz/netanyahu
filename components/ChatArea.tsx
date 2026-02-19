@@ -13,6 +13,7 @@ import UserProfileModal from "./UserProfileModal";
 import GifPicker from "./GifPicker";
 import { createMentions, createDMMentions } from "../lib/mentions";
 import MessageContent from "./MessageContent";
+import FormattingToolbar from "./FormattingToolbar";
 
 export default function ChatArea() {
   const supabase = createSupabaseBrowserClient();
@@ -37,6 +38,8 @@ export default function ChatArea() {
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [serverMembers, setServerMembers] = useState<Profile[]>([]);
   const [canSendMessages, setCanSendMessages] = useState(true);
+  const [showFormattingToolbar, setShowFormattingToolbar] = useState(false);
+  const [reactingToMessage, setReactingToMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
