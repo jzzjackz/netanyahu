@@ -19,7 +19,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body className="h-full bg-[#1e1f22] text-white antialiased">
+      <body className="h-full bg-[#313338] text-[#dbdee1] antialiased">
         <div className="flex h-screen overflow-hidden">{children}</div>
       </body>
     </html>
