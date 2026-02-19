@@ -929,6 +929,18 @@ function DMArea({ conversationId }: { conversationId: string }) {
     // Send incoming call notification
     console.log("📞 Starting call to:", otherUser.username, "conversation:", conversationId);
     const channel = supabase.channel(`call_offer:${conversationId}`);
+    
+    // Subscribe to channel first
+    await new Promise((resolve) => {
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log("📞 Call channel subscribed");
+          resolve(true);
+        }
+      });
+    });
+    
+    // Now send the call offer
     await channel.send({
       type: "broadcast",
       event: "call_offer",
