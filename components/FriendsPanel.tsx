@@ -175,9 +175,53 @@ export default function FriendsPanel() {
 
   return (
     <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
-      <div className="flex h-12 items-center border-b border-[#1e1f22] px-4">
-        <h2 className="text-base font-semibold text-white">Friends</h2>
+      {/* Top section with Friends/Personal Notes/Plutonium */}
+      <div className="border-b border-[#1e1f22] p-2 space-y-0.5">
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-sm font-medium text-white bg-[#404249] hover:bg-[#35373c]"
+        >
+          <svg className="h-6 w-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+            <path d="M3 5v-.75C3 3.56 3.56 3 4.25 3s1.24.56 1.33 1.25C6.12 8.65 9.46 12 13 12h1a8 8 0 0 1 8 8 2 2 0 0 1-2 2 .21.21 0 0 1-.2-.15 7.65 7.65 0 0 0-1.32-2.3c-.15-.2-.42-.06-.39.17l.25 2c.02.15-.1.28-.25.28H9a2 2 0 0 1-2-2v-2.22c0-1.57-.67-3.05-1.53-4.37A15.85 15.85 0 0 1 3 5Z"/>
+          </svg>
+          Friends
+        </button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-sm font-medium text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Personal Notes
+        </button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-sm font-medium text-[#949ba4] hover:bg-[#35373c] hover:text-[#dbdee1]"
+        >
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          Plutonium
+        </button>
       </div>
+
+      {/* Direct Messages header */}
+      <div className="flex items-center justify-between px-4 py-2">
+        <span className="text-xs font-semibold uppercase text-[#949ba4]">Direct Messages</span>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="text-[#949ba4] hover:text-[#dbdee1]"
+          title="Create DM"
+        >
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+
       <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
         <button
           type="button"
