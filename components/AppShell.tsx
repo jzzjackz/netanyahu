@@ -565,10 +565,12 @@ export default function AppShell() {
       
       <ChatArea />
       
-      {/* Desktop: Member List / Friends Panel */}
-      <div className="hidden lg:block">
-        {currentServerId ? <MemberList /> : <FriendsPanel />}
-      </div>
+      {/* Desktop: Member List only when in a server */}
+      {currentServerId && (
+        <div className="hidden lg:block">
+          <MemberList />
+        </div>
+      )}
       
       {/* Mobile: Friends Panel as overlay when not in a server */}
       {!currentServerId && (
