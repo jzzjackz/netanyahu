@@ -28,13 +28,15 @@ USING (
     SELECT 1 FROM messages m
     LEFT JOIN channels c ON c.id = m.channel_id
     LEFT JOIN server_members sm ON sm.server_id = c.server_id
-    LEFT JOIN direct_conversations dc ON dc.id = m.conversation_id
     WHERE m.id = message_reactions.message_id
-    AND (
-      sm.user_id = auth.uid()
-      OR dc.user_a_id = auth.uid()
-      OR dc.user_b_id = auth.uid()
-    )
+    AND sm.user_id = auth.uid()
+  )
+  OR EXISTS (
+    SELECT 1 FROM messages m
+    LEFT JOIN direct_messages dm ON dm.id = m.id
+    LEFT JOIN direct_conversations dc ON dc.id = dm.conversation_id
+    WHERE m.id = message_reactions.message_id
+    AND (dc.user_a_id = auth.uid() OR dc.user_b_id = auth.uid())
   )
 );
 
