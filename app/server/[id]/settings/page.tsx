@@ -178,7 +178,7 @@ export default function ServerSettings() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">{serverName} Settings</h1>
-            <p className="text-sm text-gray-400">Manage roles and permissions</p>
+            <p className="text-sm text-gray-400">Manage server discovery, roles and permissions</p>
           </div>
           <Link
             href="/commz"
