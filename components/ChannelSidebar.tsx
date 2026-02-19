@@ -206,6 +206,33 @@ export default function ChannelSidebar() {
     }
   };
 
+  const moveChannel = async (channelId: string, direction: "up" | "down") => {
+    const channelIndex = channels.findIndex(c => c.id === channelId);
+    if (channelIndex === -1) return;
+    
+    const channel = channels[channelIndex];
+    const sameTypeChannels = channels.filter(c => c.type === channel.type).sort((a, b) => a.position - b.position);
+    const indexInType = sameTypeChannels.findIndex(c => c.id === channelId);
+    
+    if (direction === "up" && indexInType === 0) return;
+    if (direction === "down" && indexInType === sameTypeChannels.length - 1) return;
+    
+    const swapIndex = direction === "up" ? indexInType - 1 : indexInType + 1;
+    const swapChannel = sameTypeChannels[swapIndex];
+    
+    // Swap positions
+    const tempPos = channel.position;
+    await supabase.from("channels").update({ position: swapChannel.position }).eq("id", channel.id);
+    await supabase.from("channels").update({ position: tempPos }).eq("id", swapChannel.id);
+    
+    // Update local state
+    setChannels(prev => prev.map(c => {
+      if (c.id === channel.id) return { ...c, position: swapChannel.position };
+      if (c.id === swapChannel.id) return { ...c, position: tempPos };
+      return c;
+    }));
+  };
+
   if (!currentServerId) {
     return (
       <div className="flex w-60 flex-shrink-0 flex-col bg-[#2b2d31]">
@@ -300,33 +327,57 @@ export default function ChannelSidebar() {
             <div className="mt-2 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-gray-500">
               <span>#</span> Text
             </div>
-            {textChannels.map((c) => (
+            {textChannels.map((c, idx) => (
               <div
                 key={c.id}
-                className={`group flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
+                className={`group flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
               >
                 <button
                   type="button"
                   onClick={() => setChannel(c.id)}
-                  className="flex flex-1 items-center gap-2"
+                  className="flex flex-1 items-center gap-2 min-w-0"
                 >
                   <span className="text-gray-500">#</span>
                   <span className="truncate">{c.name}</span>
                 </button>
                 {server?.owner_id === userId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedChannel(c);
-                      setChannelPermissionsOpen(true);
-                    }}
-                    className="hidden group-hover:block rounded p-0.5 text-gray-400 hover:text-white"
-                    title="Channel Permissions"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  </button>
+                  <div className="hidden group-hover:flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => moveChannel(c.id, "up")}
+                      disabled={idx === 0}
+                      className="rounded p-0.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Move Up"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveChannel(c.id, "down")}
+                      disabled={idx === textChannels.length - 1}
+                      className="rounded p-0.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Move Down"
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedChannel(c);
+                        setChannelPermissionsOpen(true);
+                      }}
+                      className="rounded p-0.5 text-gray-400 hover:text-white"
+                      title="Channel Permissions"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
@@ -337,18 +388,46 @@ export default function ChannelSidebar() {
             <div className="mt-2 flex items-center gap-1 px-2 text-xs font-semibold uppercase text-gray-500">
               <span>🔊</span> Voice
             </div>
-            {voiceChannels.map((c) => {
+            {voiceChannels.map((c, idx) => {
               const members = voiceChannelMembers.get(c.id) || [];
               return (
                 <div key={c.id}>
-                  <button
-                    type="button"
-                    onClick={() => setChannel(c.id)}
-                    className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm ${currentChannelId === c.id ? "bg-[#404249] text-white" : "text-gray-300 hover:bg-white/5 hover:text-gray-100"}`}
-                  >
-                    <span>🔊</span>
-                    <span className="truncate">{c.name}</span>
-                  </button>
+                  <div className="group flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setChannel(c.id)}
+                      className={`flex flex-1 items-center gap-2 min-w-0 ${currentChannelId === c.id ? "text-white" : "text-gray-300"}`}
+                    >
+                      <span>🔊</span>
+                      <span className="truncate">{c.name}</span>
+                    </button>
+                    {server?.owner_id === userId && (
+                      <div className="hidden group-hover:flex items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => moveChannel(c.id, "up")}
+                          disabled={idx === 0}
+                          className="rounded p-0.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move Up"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveChannel(c.id, "down")}
+                          disabled={idx === voiceChannels.length - 1}
+                          className="rounded p-0.5 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Move Down"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {members.length > 0 && (
                     <div className="ml-6 space-y-1 py-1">
                       {members.map(member => (
