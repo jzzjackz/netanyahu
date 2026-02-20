@@ -1096,19 +1096,21 @@ function DMArea({ conversationId }: { conversationId: string }) {
     try {
       console.log("📞 Starting call to:", otherUser.username, "conversation:", conversationId);
       
-      // Get or create the channel
-      const channel = supabase.channel(`call_offer:${conversationId}`, {
+      const channelName = `call_offer:${conversationId}`;
+      console.log("📞 Broadcasting on channel:", channelName);
+      
+      // Use the SAME channel name that AppShell is listening to
+      const channel = supabase.channel(channelName, {
         config: {
           broadcast: { self: false },
         },
       });
       
-      // Subscribe first
+      // Subscribe and send
       channel.subscribe(async (status) => {
         console.log("📞 Channel status:", status);
         if (status === 'SUBSCRIBED') {
-          console.log("📞 Sending call offer...");
-          // Send the call offer
+          console.log("📞 Sending broadcast to channel:", channelName);
           const result = await channel.send({
             type: "broadcast",
             event: "call_offer",
@@ -1118,7 +1120,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
               username: currentUsername,
             },
           });
-          console.log("📞 Send result:", result);
+          console.log("📞 Broadcast sent, result:", result);
         }
       });
       
