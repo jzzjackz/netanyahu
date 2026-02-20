@@ -1095,37 +1095,34 @@ function DMArea({ conversationId }: { conversationId: string }) {
     
     try {
       console.log("📞 Starting call to:", otherUser.username, "conversation:", conversationId);
+      
+      // Get or create the channel
       const channel = supabase.channel(`call_offer:${conversationId}`, {
         config: {
           broadcast: { self: false },
         },
       });
       
-      // Subscribe and wait
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Subscription timeout')), 5000);
-        channel.subscribe((status) => {
-          console.log("📞 Subscription status:", status);
-          if (status === 'SUBSCRIBED') {
-            clearTimeout(timeout);
-            resolve(true);
-          }
-        });
+      // Subscribe first
+      channel.subscribe(async (status) => {
+        console.log("📞 Channel status:", status);
+        if (status === 'SUBSCRIBED') {
+          console.log("📞 Sending call offer...");
+          // Send the call offer
+          const result = await channel.send({
+            type: "broadcast",
+            event: "call_offer",
+            payload: {
+              from: userId,
+              to: otherUser.id,
+              username: currentUsername,
+            },
+          });
+          console.log("📞 Send result:", result);
+        }
       });
       
-      console.log("📞 Sending call offer...");
-      // Send the call offer
-      await channel.send({
-        type: "broadcast",
-        event: "call_offer",
-        payload: {
-          from: userId,
-          to: otherUser.id,
-          username: currentUsername,
-        },
-      });
-      console.log("📞 Call offer sent!");
-      
+      // Open call UI immediately for caller
       setInCall(true);
     } catch (error) {
       console.error("📞 Call failed:", error);
