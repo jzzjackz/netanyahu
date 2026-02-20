@@ -1087,7 +1087,11 @@ function DMArea({ conversationId }: { conversationId: string }) {
   };
 
   const handleStartCall = async () => {
-    if (!userId || !otherUser) return;
+    console.log("📞 handleStartCall clicked! userId:", userId, "otherUser:", otherUser);
+    if (!userId || !otherUser) {
+      console.log("❌ Missing userId or otherUser, cannot start call");
+      return;
+    }
     
     try {
       console.log("📞 Starting call to:", otherUser.username, "conversation:", conversationId);
@@ -1197,7 +1201,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
           <h2 className="font-semibold">{otherUser?.username ?? "Direct Message"}</h2>
           <div className="flex gap-2">
             <button
-              onClick={() => setInCall(true)}
+              onClick={handleStartCall}
               className="rounded p-2 text-gray-400 hover:bg-white/5 hover:text-white"
               title="Start voice call"
             >
@@ -1206,7 +1210,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
               </svg>
             </button>
             <button
-              onClick={() => setInCall(true)}
+              onClick={handleStartCall}
               className="rounded p-2 text-gray-400 hover:bg-white/5 hover:text-white"
               title="Start video call"
             >
