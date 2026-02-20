@@ -410,7 +410,9 @@ export default function AppShell() {
             },
           })
           .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
+            console.log("🔔 BROADCAST RECEIVED:", payload);
             if (payload.to === userId && payload.from !== userId) {
+              console.log("✅ Call is for me!");
               const { data: callerProfile } = await supabase
                 .from("profiles")
                 .select("username, avatar_url")
@@ -418,6 +420,7 @@ export default function AppShell() {
                 .single();
 
               if (isMounted) {
+                console.log("✅ Setting incoming call state");
                 setIncomingCall({
                   conversationId: convo.id,
                   callerUsername: callerProfile?.username || payload.username || "Unknown",
@@ -429,9 +432,13 @@ export default function AppShell() {
                 audio.loop = true;
                 audio.play().catch(() => {});
               }
+            } else {
+              console.log("❌ Call not for me:", { payloadTo: payload.to, myId: userId });
             }
           })
-          .subscribe();
+          .subscribe((status) => {
+            console.log(`📡 Call channel ${convo.id}:`, status);
+          });
 
         return channel;
       });
