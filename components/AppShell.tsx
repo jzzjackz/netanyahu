@@ -404,7 +404,11 @@ export default function AppShell() {
 
       channels = conversations.map((convo) => {
         const channel = supabase
-          .channel(`call_offer:${convo.id}`)
+          .channel(`call_offer:${convo.id}`, {
+            config: {
+              broadcast: { self: false },
+            },
+          })
           .on("broadcast", { event: "call_offer" }, async ({ payload }) => {
             if (payload.to === userId && payload.from !== userId) {
               const { data: callerProfile } = await supabase

@@ -1089,29 +1089,39 @@ function DMArea({ conversationId }: { conversationId: string }) {
   const handleStartCall = async () => {
     if (!userId || !otherUser) return;
     
-    const channel = supabase.channel(`call_offer:${conversationId}`);
-    
-    // Subscribe and wait
-    await new Promise((resolve) => {
-      channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          resolve(true);
-        }
+    try {
+      const channel = supabase.channel(`call_offer:${conversationId}`, {
+        config: {
+          broadcast: { self: false },
+        },
       });
-    });
-    
-    // Send the call offer
-    await channel.send({
-      type: "broadcast",
-      event: "call_offer",
-      payload: {
-        from: userId,
-        to: otherUser.id,
-        username: currentUsername,
-      },
-    });
-    
-    setInCall(true);
+      
+      // Subscribe and wait
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Subscription timeout')), 5000);
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            clearTimeout(timeout);
+            resolve(true);
+          }
+        });
+      });
+      
+      // Send the call offer
+      await channel.send({
+        type: "broadcast",
+        event: "call_offer",
+        payload: {
+          from: userId,
+          to: otherUser.id,
+          username: currentUsername,
+        },
+      });
+      
+      setInCall(true);
+    } catch (error) {
+      alert("Failed to start call. Please try again.");
+    }
   };
 
   const handleAcceptCall = () => {
