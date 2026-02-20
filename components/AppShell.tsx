@@ -12,6 +12,7 @@ import IncomingCallNotification from "./IncomingCallNotification";
 import AnnouncementBanner from "./AnnouncementBanner";
 import { useAppStore } from "../lib/store";
 import { createSupabaseBrowserClient } from "../lib/supabaseClient";
+import { audioManager } from "../lib/audioManager";
 import type { Channel, DirectMessage, Profile } from "../lib/types";
 
 export default function AppShell() {
@@ -489,10 +490,12 @@ export default function AppShell() {
           callerUsername={incomingCall.callerUsername}
           callerAvatar={incomingCall.callerAvatar}
           onAccept={() => {
+            audioManager.stopRingtone();
             setConversation(incomingCall.conversationId);
             setIncomingCall(null);
           }}
           onDecline={() => {
+            audioManager.stopRingtone();
             // Send decline signal
             supabase.channel(`call_offer:${incomingCall.conversationId}`).send({
               type: "broadcast",
