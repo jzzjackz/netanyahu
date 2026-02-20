@@ -491,7 +491,10 @@ export default function AppShell() {
           callerAvatar={incomingCall.callerAvatar}
           onAccept={() => {
             audioManager.stopRingtone();
+            // Switch to the conversation and trigger call state
             setConversation(incomingCall.conversationId);
+            // Store that we're accepting a call so DMArea can pick it up
+            sessionStorage.setItem('acceptingCall', incomingCall.conversationId);
             setIncomingCall(null);
           }}
           onDecline={() => {
