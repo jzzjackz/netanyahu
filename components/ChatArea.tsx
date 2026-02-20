@@ -1101,7 +1101,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
     });
     
     // Send the call offer
-    const { error } = await channel.send({
+    await channel.send({
       type: "broadcast",
       event: "call_offer",
       payload: {
@@ -1110,11 +1110,6 @@ function DMArea({ conversationId }: { conversationId: string }) {
         username: currentUsername,
       },
     });
-    
-    if (error) {
-      alert("Failed to start call");
-      return;
-    }
     
     setInCall(true);
   };
