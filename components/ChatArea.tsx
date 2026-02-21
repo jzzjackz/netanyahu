@@ -603,15 +603,20 @@ export default function ChatArea() {
               )}
             </button>
             <div className="min-w-0 flex-1">
-              <button
-                onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
-                className="mr-2 font-medium text-white hover:underline"
-              >
-                {m.profiles?.username ?? "Unknown"}
-              </button>
-              <span className="text-xs text-gray-500">
-                {m.created_at && format(new Date(m.created_at), "MMM d, HH:mm")}
-              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
+                  className="font-medium text-white hover:underline"
+                >
+                  {m.profiles?.username ?? "Unknown"}
+                </button>
+                {m.author_id === 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
+                  <span className="text-sm" title="Dev">🔨</span>
+                )}
+                <span className="text-xs text-gray-500">
+                  {m.created_at && format(new Date(m.created_at), "MMM d, HH:mm")}
+                </span>
+              </div>
               {m.reply_to && m.reply_message && (
                 <div className="mb-1 ml-4 border-l-2 border-indigo-500 pl-2 text-xs">
                   <span className="text-gray-400">
@@ -1152,13 +1157,18 @@ function DMArea({ conversationId }: { conversationId: string }) {
                 )}
               </button>
               <div className="min-w-0 flex-1">
-                <button
-                  onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
-                  className="mr-2 font-medium text-white hover:underline"
-                >
-                  {m.profiles?.username ?? "Unknown"}
-                </button>
-                <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => m.author_id && setProfileModalUserId(m.author_id)}
+                    className="font-medium text-white hover:underline"
+                  >
+                    {m.profiles?.username ?? "Unknown"}
+                  </button>
+                  {m.author_id === 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
+                    <span className="text-sm" title="Dev">🔨</span>
+                  )}
+                  <span className="text-xs text-gray-500">{format(new Date(m.created_at), "MMM d, HH:mm")}</span>
+                </div>
                 {editingMessageId === m.id ? (
                   <div className="mt-2">
                     <input

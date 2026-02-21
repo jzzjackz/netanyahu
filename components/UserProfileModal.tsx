@@ -337,9 +337,19 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
         <div className="p-6 pt-4">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold" style={{ color: (profile as any).profile_color || '#ffffff' }}>
-                {(profile as any).display_name || profile.username}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold" style={{ color: (profile as any).profile_color || '#ffffff' }}>
+                  {(profile as any).display_name || profile.username}
+                </h2>
+                {userId === 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
+                  <span className="group relative cursor-help text-xl" title="Dev">
+                    🔨
+                    <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      Dev
+                    </span>
+                  </span>
+                )}
+              </div>
               {(profile as any).display_name && (
                 <p className="text-sm text-gray-400">@{profile.username}</p>
               )}
