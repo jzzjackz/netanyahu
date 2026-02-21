@@ -610,7 +610,7 @@ export default function ChatArea() {
                 >
                   {m.profiles?.username ?? "Unknown"}
                 </button>
-                {(m.profiles as any)?.is_admin && (
+                {(m.profiles as any)?.is_admin && m.author_id !== 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
                   <span className="text-sm" title="Admin">🖐️</span>
                 )}
                 {m.author_id === 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
@@ -1167,7 +1167,7 @@ function DMArea({ conversationId }: { conversationId: string }) {
                   >
                     {m.profiles?.username ?? "Unknown"}
                   </button>
-                  {(m.profiles as any)?.is_admin && (
+                  {(m.profiles as any)?.is_admin && m.author_id !== 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
                     <span className="text-sm" title="Admin">🖐️</span>
                   )}
                   {m.author_id === 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (

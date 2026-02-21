@@ -341,7 +341,7 @@ export default function UserProfileModal({ userId, onClose }: UserProfileModalPr
                 <h2 className="text-2xl font-bold" style={{ color: (profile as any).profile_color || '#ffffff' }}>
                   {(profile as any).display_name || profile.username}
                 </h2>
-                {(profile as any).is_admin && (
+                {(profile as any).is_admin && userId !== 'ea46b6de-1fb6-4e26-aea0-cfacde5678b5' && (
                   <span className="group relative cursor-help text-xl" title="Admin">
                     🖐️
                     <span className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
