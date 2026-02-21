@@ -17,6 +17,20 @@ export default function ServerSidebar() {
   const [contextPos, setContextPos] = useState({ x: 0, y: 0 });
   const [userId, setUserId] = useState<string | null>(null);
 
+  // Helper function to get server initials
+  const getServerInitials = (name: string) => {
+    const words = name.trim().split(/\s+/);
+    if (words.length === 1) {
+      // Single word: use first letter
+      return words[0][0]?.toUpperCase() || "?";
+    }
+    // Multiple words: use first letter of each word (max 2)
+    return words
+      .slice(0, 2)
+      .map(word => word[0]?.toUpperCase() || "")
+      .join("");
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUserId(user?.id ?? null));
   }, [supabase.auth]);
@@ -133,7 +147,7 @@ export default function ServerSidebar() {
           {s.icon_url ? (
             <img src={s.icon_url} alt="" className="h-full w-full rounded-[24px] object-cover group-hover:rounded-[16px]" />
           ) : (
-            (s.name[0] ?? "?").toUpperCase()
+            getServerInitials(s.name)
           )}
           {currentServerId === s.id && (
             <div className="absolute left-0 top-1/2 h-10 w-1 -translate-x-2 -translate-y-1/2 rounded-r bg-white" />

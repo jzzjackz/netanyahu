@@ -38,6 +38,8 @@ export default function ServerSettings() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [showCreateRole, setShowCreateRole] = useState(false);
+  const [serverIcon, setServerIcon] = useState<string | null>(null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -49,7 +51,7 @@ export default function ServerSettings() {
 
       const { data: server, error: serverError } = await supabase
         .from("servers")
-        .select("name, owner_id, is_discoverable, discovery_description")
+        .select("name, owner_id, is_discoverable, discovery_description, icon_url")
         .eq("id", serverId)
         .single();
 
@@ -71,6 +73,7 @@ export default function ServerSettings() {
         setServerName(basicServer.name);
         setIsDiscoverable(false);
         setDiscoveryDescription("");
+        setServerIcon(null);
         
         if (basicServer.owner_id !== user.id) {
           alert("Only server owners can access settings");
@@ -81,6 +84,7 @@ export default function ServerSettings() {
         setServerName(server.name);
         setIsDiscoverable(server.is_discoverable || false);
         setDiscoveryDescription(server.discovery_description || "");
+        setServerIcon(server.icon_url || null);
 
         if (server.owner_id !== user.id) {
           alert("Only server owners can access settings");
@@ -162,6 +166,65 @@ export default function ServerSettings() {
     }
   };
 
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size must be less than 5MB");
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith("image/")) {
+      alert("File must be an image");
+      return;
+    }
+
+    setUploadingIcon(true);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${serverId}/icon-${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from("server-icons")
+        .upload(fileName, file);
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("server-icons")
+        .getPublicUrl(data.path);
+
+      await supabase
+        .from("servers")
+        .update({ icon_url: publicUrl })
+        .eq("id", serverId);
+
+      setServerIcon(publicUrl);
+      alert("Server icon updated!");
+    } catch (error: any) {
+      console.error("Error uploading icon:", error);
+      alert("Failed to upload icon: " + error.message);
+    } finally {
+      setUploadingIcon(false);
+    }
+  };
+
+  const handleRemoveIcon = async () => {
+    if (!confirm("Remove server icon?")) return;
+
+    await supabase
+      .from("servers")
+      .update({ icon_url: null })
+      .eq("id", serverId);
+
+    setServerIcon(null);
+    alert("Server icon removed!");
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#313338] text-white">
@@ -186,6 +249,45 @@ export default function ServerSettings() {
           >
             Back to Server
           </Link>
+        </div>
+
+        {/* Server Icon Section */}
+        <div className="mb-6 rounded-lg bg-[#2b2d31] p-6">
+          <h2 className="mb-4 text-xl font-bold">Server Icon</h2>
+          <div className="flex items-center gap-6">
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#5865f2] text-3xl font-bold overflow-hidden">
+              {serverIcon ? (
+                <img src={serverIcon} alt="Server icon" className="h-full w-full object-cover" />
+              ) : (
+                serverName.split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || "").join("") || "?"
+              )}
+            </div>
+            <div className="flex-1">
+              <p className="mb-3 text-sm text-gray-400">
+                Recommended size: 512x512px. Max file size: 5MB
+              </p>
+              <div className="flex gap-2">
+                <label className="cursor-pointer rounded-sm bg-[#5865f2] px-4 py-2 text-sm font-medium hover:bg-[#4752c4]">
+                  {uploadingIcon ? "Uploading..." : "Upload Icon"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleIconUpload}
+                    disabled={uploadingIcon}
+                    className="hidden"
+                  />
+                </label>
+                {serverIcon && (
+                  <button
+                    onClick={handleRemoveIcon}
+                    className="rounded-sm bg-red-500 px-4 py-2 text-sm font-medium hover:bg-red-600"
+                  >
+                    Remove Icon
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Discovery Section */}
