@@ -148,6 +148,16 @@ export default function ServerSidebar() {
       >
         +
       </button>
+      <button
+        type="button"
+        onClick={() => window.location.href = '/discover'}
+        className="flex h-12 w-12 items-center justify-center rounded-[24px] bg-[#313338] transition-all duration-200 hover:rounded-[16px] hover:bg-[#23a559]"
+        title="Discover Servers"
+      >
+        <svg className="h-6 w-6 text-[#23a55a]" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+        </svg>
+      </button>
       {contextServer && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setContextServer(null)} aria-hidden />
