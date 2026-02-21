@@ -245,7 +245,7 @@ export default function MemberList() {
             className="group flex items-center gap-2 rounded px-2 py-1.5 hover:bg-white/5"
             onContextMenu={(e) => {
               e.preventDefault();
-              if (isOwner && m.user_id !== userId) {
+              if (isOwner && (m.user_id !== userId || isCurrentUser)) {
                 setContextMember(m);
                 setContextPos({ x: e.clientX, y: e.clientY });
               }
@@ -325,20 +325,24 @@ export default function MemberList() {
                 >
                   Manage Roles
                 </button>
-                <button
-                  type="button"
-                  onClick={() => handleKick(contextMember)}
-                  className="w-full px-4 py-2 text-left text-sm text-orange-400 hover:bg-white/10"
-                >
-                  Kick {contextMember.profiles?.username}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleBan(contextMember)}
-                  className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/10"
-                >
-                  Ban {contextMember.profiles?.username}
-                </button>
+                {contextMember.user_id !== userId && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleKick(contextMember)}
+                      className="w-full px-4 py-2 text-left text-sm text-orange-400 hover:bg-white/10"
+                    >
+                      Kick {contextMember.profiles?.username}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleBan(contextMember)}
+                      className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-white/10"
+                    >
+                      Ban {contextMember.profiles?.username}
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() => setContextMember(null)}
