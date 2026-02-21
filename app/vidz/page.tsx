@@ -148,6 +148,7 @@ export default function VidzHome() {
               Upload the first video
             </Link>
           </div>
+        )}
         </div>
       </main>
     </div>

@@ -350,6 +350,7 @@ export default function WatchVideo() {
             <p className="text-sm text-gray-400">Coming soon...</p>
           </div>
         </div>
+        </div>
       </main>
     </div>
   );
