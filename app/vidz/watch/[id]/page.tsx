@@ -322,7 +322,7 @@ export default function WatchVideo() {
                 </div>
               </form>
 
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
                 {comments.map((comment) => (
                   <div key={comment.id} className="flex gap-3">
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-500 text-sm font-bold">

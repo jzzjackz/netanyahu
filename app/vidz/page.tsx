@@ -96,7 +96,7 @@ export default function VidzHome() {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-[1800px] p-6">
+      <main className="mx-auto max-w-[1800px] p-6 overflow-y-auto">
         <h1 className="mb-6 text-2xl font-bold">Home</h1>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {videos.map((video) => (
