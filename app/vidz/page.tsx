@@ -73,9 +73,9 @@ export default function VidzHome() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
+    <div className="flex flex-col h-screen bg-[#0f0f0f] text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-[#272727] bg-[#0f0f0f] px-6 py-3">
+      <header className="flex-shrink-0 flex items-center justify-between border-b border-[#272727] bg-[#0f0f0f] px-6 py-3">
         <Link href="/vidz" className="text-xl font-bold">
           AllInOne Vidz
         </Link>
@@ -96,8 +96,9 @@ export default function VidzHome() {
       </header>
 
       {/* Main content */}
-      <main className="mx-auto max-w-[1800px] p-6 overflow-y-auto">
-        <h1 className="mb-6 text-2xl font-bold">Home</h1>
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[1800px] p-6">
+          <h1 className="mb-6 text-2xl font-bold">Home</h1>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {videos.map((video) => (
             <Link
@@ -147,7 +148,7 @@ export default function VidzHome() {
               Upload the first video
             </Link>
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

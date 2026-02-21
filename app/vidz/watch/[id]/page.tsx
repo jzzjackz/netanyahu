@@ -207,15 +207,16 @@ export default function WatchVideo() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] text-white">
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-[#272727] bg-[#0f0f0f] px-6 py-3">
+    <div className="flex flex-col h-screen bg-[#0f0f0f] text-white">
+      <header className="flex-shrink-0 flex items-center justify-between border-b border-[#272727] bg-[#0f0f0f] px-6 py-3">
         <Link href="/vidz" className="text-xl font-bold">
           AllInOne Vidz
         </Link>
       </header>
 
-      <main className="mx-auto max-w-[1800px] p-6">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[1800px] p-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Video player */}
           <div className="lg:col-span-2">
             <div className="aspect-video overflow-hidden rounded-xl bg-black">
