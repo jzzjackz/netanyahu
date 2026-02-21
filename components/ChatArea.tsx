@@ -42,6 +42,9 @@ export default function ChatArea() {
   const [reactingToMessage, setReactingToMessage] = useState<string | null>(null);
   const [friends, setFriends] = useState<Profile[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [friendUsername, setFriendUsername] = useState("");
+  const [addingFriend, setAddingFriend] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -453,6 +456,62 @@ export default function ChatArea() {
       if (conv) setConversation(conv.id);
     };
     
+    const handleAddFriend = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!friendUsername.trim() || addingFriend) return;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      setAddingFriend(true);
+      
+      // Find user by username
+      const { data: targetUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("username", friendUsername.trim())
+        .single();
+      
+      if (!targetUser) {
+        alert("User not found");
+        setAddingFriend(false);
+        return;
+      }
+      
+      if (targetUser.id === user.id) {
+        alert("You can't add yourself as a friend");
+        setAddingFriend(false);
+        return;
+      }
+      
+      // Check if already friends or request exists
+      const { data: existing } = await supabase
+        .from("friend_requests")
+        .select("id")
+        .or(`and(from_user_id.eq.${user.id},to_user_id.eq.${targetUser.id}),and(from_user_id.eq.${targetUser.id},to_user_id.eq.${user.id})`)
+        .maybeSingle();
+      
+      if (existing) {
+        alert("Friend request already exists or you're already friends");
+        setAddingFriend(false);
+        return;
+      }
+      
+      // Send friend request
+      await supabase
+        .from("friend_requests")
+        .insert({
+          from_user_id: user.id,
+          to_user_id: targetUser.id,
+          status: "pending",
+        });
+      
+      alert("Friend request sent!");
+      setFriendUsername("");
+      setShowAddFriend(false);
+      setAddingFriend(false);
+    };
+    
     const filteredFriends = friends.filter(friend => 
       friend.username.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -460,7 +519,7 @@ export default function ChatArea() {
     return (
       <div className="flex flex-1 flex-col bg-[#313338]">
         {/* Top Navigation Bar */}
-        <div className="flex h-12 items-center border-b border-[#1e1f22] px-4 shadow-sm">
+        <div className="flex h-12 items-center justify-between border-b border-[#1e1f22] px-4 shadow-sm">
           <div className="flex items-center gap-2 text-[#949ba4]">
             <svg className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M13 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
@@ -468,6 +527,12 @@ export default function ChatArea() {
             </svg>
             <span className="ml-2 text-base font-semibold text-white">Friends</span>
           </div>
+          <button
+            onClick={() => setShowAddFriend(true)}
+            className="rounded bg-[#248046] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1a6334]"
+          >
+            Add Friend
+          </button>
         </div>
         
         {/* Friends List */}
@@ -542,6 +607,47 @@ export default function ChatArea() {
             </div>
           )}
         </div>
+        
+        {/* Add Friend Modal */}
+        {showAddFriend && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddFriend(false)}>
+            <div className="w-full max-w-md rounded-lg bg-[#313338] p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <h2 className="mb-4 text-xl font-bold">Add Friend</h2>
+              <form onSubmit={handleAddFriend} className="space-y-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-300">
+                    Enter username
+                  </label>
+                  <input
+                    type="text"
+                    value={friendUsername}
+                    onChange={(e) => setFriendUsername(e.target.value)}
+                    placeholder="Username"
+                    className="w-full rounded bg-[#1e1f22] px-3 py-2 text-sm outline-none"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddFriend(false)}
+                    className="rounded px-4 py-2 text-sm hover:bg-white/10"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={addingFriend || !friendUsername.trim()}
+                    className="rounded bg-[#248046] px-4 py-2 text-sm font-medium hover:bg-[#1a6334] disabled:opacity-50"
+                  >
+                    {addingFriend ? "Sending..." : "Send Request"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
