@@ -466,13 +466,13 @@ export default function ChatArea() {
       setAddingFriend(true);
       
       // Find user by username
-      const { data: targetUser } = await supabase
+      const { data: targetUser, error: userError } = await supabase
         .from("profiles")
         .select("id")
         .ilike("username", friendUsername.trim())
-        .single();
+        .maybeSingle();
       
-      if (!targetUser) {
+      if (!targetUser || userError) {
         alert("User not found");
         setAddingFriend(false);
         return;
